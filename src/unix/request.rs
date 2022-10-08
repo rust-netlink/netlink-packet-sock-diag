@@ -54,9 +54,11 @@ pub struct UnixRequest {
     pub inode: u32,
     /// This is a set of flags defining what kind of information to report.
     ///
-    /// Each requested kind of information is reported back as a netlink attribute
+    /// Each requested kind of information is reported back as a netlink
+    /// attribute
     pub show_flags: ShowFlags,
-    /// This is an opaque identifiers that could be used to specify an individual socket.
+    /// This is an opaque identifiers that could be used to specify an
+    /// individual socket.
     pub cookie: [u8; 8],
 }
 

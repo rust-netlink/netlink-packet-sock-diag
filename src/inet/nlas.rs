@@ -89,13 +89,15 @@ buffer!(MemInfoBuffer(MEM_INFO_LEN) {
 /// documentation with a huge grain of salt. Please report any error
 /// you may notice. Here are the references I used:
 ///
-/// - [https://wiki.linuxfoundation.org/networking/sk_buff](a short introduction to `sk_buff`, the struct used in the kernel to store packets)
+/// - [https://wiki.linuxfoundation.org/networking/sk_buff](a short introduction
+///   to `sk_buff`, the struct used in the kernel to store packets)
 /// - [vger.kernel.org has a lot of documentation about the low level network stack APIs](http://vger.kernel.org/~davem/skb_data.html)
 /// - [thorough high level explanation of buffering in the network stack](https://www.coverfire.com/articles/queueing-in-the-linux-network-stack/)
 /// - [understanding the backlog queue](http://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html)
 /// - [high level explanation of packet reception](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/performance_tuning_guide/s-network-packet-reception)
 /// - [a StackExchange question about the different send queues used by a socket](https://unix.stackexchange.com/questions/551444/what-is-the-difference-between-sock-sk-wmem-alloc-and-sock-sk-wmem-queued)
-/// - other useful resources: [here](https://www.cl.cam.ac.uk/~pes20/Netsem/linuxnet.pdf) and [here](https://people.cs.clemson.edu/~westall/853/notes/skbuff.pdf)
+/// - other useful resources: [here](https://www.cl.cam.ac.uk/~pes20/Netsem/linuxnet.pdf)
+///   and [here](https://people.cs.clemson.edu/~westall/853/notes/skbuff.pdf)
 /// - [explanation of the socket backlog queue](https://medium.com/@c0ngwang/the-design-of-lock-sock-in-linux-kernel-69c3406e504b)
 ///
 /// # Linux networking in a nutshell

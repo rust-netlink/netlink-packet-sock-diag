@@ -3,10 +3,7 @@
 use netlink_packet_sock_diag::{
     constants::*,
     inet::{ExtensionFlags, InetRequest, SocketId, StateFlags},
-    NetlinkHeader,
-    NetlinkMessage,
-    NetlinkPayload,
-    SockDiagMessage,
+    NetlinkHeader, NetlinkMessage, NetlinkPayload, SockDiagMessage,
 };
 use netlink_sys::{protocols::NETLINK_SOCK_DIAG, Socket, SocketAddr};
 
@@ -34,8 +31,8 @@ fn main() {
 
     let mut buf = vec![0; packet.header.length as usize];
 
-    // Before calling serialize, it is important to check that the buffer in which we're emitting is big
-    // enough for the packet, other `serialize()` panics.
+    // Before calling serialize, it is important to check that the buffer in which
+    // we're emitting is big enough for the packet, other `serialize()` panics.
     assert_eq!(buf.len(), packet.buffer_len());
 
     packet.serialize(&mut buf[..]);
@@ -63,7 +60,7 @@ fn main() {
                     println!("Done!");
                     return;
                 }
-                NetlinkPayload::Error(_) | NetlinkPayload::Overrun(_) | _ => return,
+                _ => return,
             }
 
             offset += rx_packet.header.length as usize;

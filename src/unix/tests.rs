@@ -4,12 +4,7 @@ use crate::{
     constants::*,
     traits::{Emitable, Parseable},
     unix::{
-        nlas::Nla,
-        ShowFlags,
-        StateFlags,
-        UnixRequest,
-        UnixResponse,
-        UnixResponseBuffer,
+        nlas::Nla, ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseBuffer,
         UnixResponseHeader,
     },
 };
