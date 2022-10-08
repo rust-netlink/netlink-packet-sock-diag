@@ -7,7 +7,7 @@ edition = "2018"
 homepage = "https://github.com/rust-netlink/netlink-packet-sock-diag"
 keywords = ["netlink", "linux", "sock_diag"]
 license = "MIT"
-readme = "../README.md"
+readme = "README.md"
 repository = "https://github.com/rust-netlink/netlink-packet-sock-diag"
 description = "netlink packet types for the sock_diag subprotocol"
 
