@@ -39,25 +39,23 @@ pub enum Nla {
     ///
     /// For **listening** sockets:
     ///
-    /// - the first the number is the number of pending
-    ///   connections. It should be equal to `Nla::PendingConnections`
-    ///   value's length.
-    /// - the second number is the backlog queue maximum length, which
-    ///   equals to the value passed as the second argument to
-    ///   `listen(2)`
+    /// - the first the number is the number of pending connections. It should
+    ///   be equal to `Nla::PendingConnections` value's length.
+    /// - the second number is the backlog queue maximum length, which equals to
+    ///   the value passed as the second argument to `listen(2)`
     ///
     /// For other sockets:
     ///
-    /// - the first number is the amount of data in receive queue
-    ///   (**note**: I am not sure if it is the actual amount of data
-    ///   or the amount of memory allocated. The two might differ
-    ///   because of memory allocation strategies: more memory than
-    ///   strictly necessary may be allocated for a given `sk_buff`)
-    /// - the second number is the memory used by outgoing data. Note
-    ///   that strictly UNIX sockets don't have a send queue, since
-    ///   the data they send is directly written into the destination
-    ///   socket receive queue. But the memory allocated for this data
-    ///   is still counted from the sender point of view.
+    /// - the first number is the amount of data in receive queue (**note**: I
+    ///   am not sure if it is the actual amount of data or the amount of memory
+    ///   allocated. The two might differ because of memory allocation
+    ///   strategies: more memory than strictly necessary may be allocated for a
+    ///   given `sk_buff`)
+    /// - the second number is the memory used by outgoing data. Note that
+    ///   strictly UNIX sockets don't have a send queue, since the data they
+    ///   send is directly written into the destination socket receive queue.
+    ///   But the memory allocated for this data is still counted from the
+    ///   sender point of view.
     ReceiveQueueLength(u32, u32),
     /// Socket memory information. See [`MemInfo`] for more details.
     MemInfo(MemInfo),

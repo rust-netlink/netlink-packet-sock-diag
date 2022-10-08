@@ -7,8 +7,7 @@ use std::time::Duration;
 use crate::{
     inet::{
         nlas::{Nla, NlaBuffer, NlasIterator},
-        SocketId,
-        SocketIdBuffer,
+        SocketId, SocketIdBuffer,
     },
     traits::{Emitable, Parseable, ParseableParametrized},
     DecodeError,

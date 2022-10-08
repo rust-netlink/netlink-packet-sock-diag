@@ -167,7 +167,8 @@ pub const TCP_LAST_ACK: u8 = 9;
 /// (server) represents waiting for a connection request from any
 /// remote TCP and port.
 pub const TCP_LISTEN: u8 = 10;
-/// (both server and client) represents waiting for a connection termination request acknowledgment from the remote TCP.
+/// (both server and client) represents waiting for a connection termination
+/// request acknowledgment from the remote TCP.
 pub const TCP_CLOSING: u8 = 11;
 
 /// The attribute reported in answer to this request is
@@ -193,11 +194,11 @@ pub const UDIAG_SHOW_ICONS: u32 = 1 << UNIX_DIAG_ICONS;
 /// The attribute reported in answer to this request is
 /// `UNIX_DIAG_RQLEN`, which reports:
 ///
-/// - for listening socket: the number of pending connections, and the
-///   backlog length (which equals to the value passed as the second
-///   argument to `listen(2)`).
-/// - for established sockets: the amount of data in incoming queue,
-///   and the amount of memory available for sending
+/// - for listening socket: the number of pending connections, and the backlog
+///   length (which equals to the value passed as the second argument to
+///   `listen(2)`).
+/// - for established sockets: the amount of data in incoming queue, and the
+///   amount of memory available for sending
 pub const UDIAG_SHOW_RQLEN: u32 = 1 << UNIX_DIAG_RQLEN;
 /// The attribute reported in answer to this request is
 /// `UNIX_DIAG_MEMINFO` which shows memory information about the
@@ -232,7 +233,8 @@ pub const SOCK_RDM: u8 = libc::SOCK_RDM as u8;
 /// Obsolete and should not be used in new programs; see `packet(7)`.
 pub const SOCK_PACKET: u8 = libc::SOCK_PACKET as u8;
 
-/// Nothing bad has been observed recently. No apparent reordering, packet loss, or ECN marks.
+/// Nothing bad has been observed recently. No apparent reordering, packet loss,
+/// or ECN marks.
 pub const TCP_CA_OPEN: u8 = 0;
 pub const TCPF_CA_OPEN: u32 = 1 << TCP_CA_OPEN;
 
@@ -247,7 +249,8 @@ pub const TCPF_CA_DISORDER: u32 = 1 << TCP_CA_DISORDER;
 /// congestion or packet discard on the sender host (e.g. qdisc).
 pub const TCP_CA_CWR: u8 = 2;
 pub const TCPF_CA_CWR: u32 = 1 << TCP_CA_CWR;
-/// The sender is in fast recovery and retransmitting lost packets, typically triggered by ACK events.
+/// The sender is in fast recovery and retransmitting lost packets, typically
+/// triggered by ACK events.
 pub const TCP_CA_RECOVERY: u8 = 3;
 pub const TCPF_CA_RECOVERY: u32 = 1 << TCP_CA_RECOVERY;
 /// The sender is in loss recovery triggered by retransmission timeout.

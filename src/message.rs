@@ -3,14 +3,8 @@
 use crate::{
     inet,
     traits::{Emitable, ParseableParametrized},
-    unix,
-    DecodeError,
-    NetlinkDeserializable,
-    NetlinkHeader,
-    NetlinkPayload,
-    NetlinkSerializable,
-    SockDiagBuffer,
-    SOCK_DIAG_BY_FAMILY,
+    unix, DecodeError, NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
+    SockDiagBuffer, SOCK_DIAG_BY_FAMILY,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
