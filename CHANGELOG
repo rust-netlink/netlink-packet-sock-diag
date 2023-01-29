@@ -1,0 +1,10 @@
+# Changelog
+## [0.4.0] - 2023-01-29
+### Breaking changes
+ - Removed all reexports. (e3bb0f0)
+
+### New features
+ - N/A
+
+### Bug fixes
+ - Use latest rust-netlink crates. (1c0c9a8)
