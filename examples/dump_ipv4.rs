@@ -12,12 +12,11 @@ fn main() {
     let _port_number = socket.bind_auto().unwrap().port_number();
     socket.connect(&SocketAddr::new(0, 0)).unwrap();
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            flags: NLM_F_REQUEST | NLM_F_DUMP,
-            ..Default::default()
-        },
-        payload: SockDiagMessage::InetRequest(InetRequest {
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_DUMP;
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        SockDiagMessage::InetRequest(InetRequest {
             family: AF_INET,
             protocol: IPPROTO_TCP,
             extensions: ExtensionFlags::empty(),
@@ -25,7 +24,7 @@ fn main() {
             socket_id: SocketId::new_v4(),
         })
         .into(),
-    };
+    );
 
     packet.finalize();
 
