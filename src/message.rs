@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-use crate::{
-    inet,
-    traits::{Emitable, ParseableParametrized},
-    unix, DecodeError, NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
-    SockDiagBuffer, SOCK_DIAG_BY_FAMILY,
+use netlink_packet_core::{
+    NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
 };
+use netlink_packet_utils::{
+    traits::{Emitable, ParseableParametrized},
+    DecodeError,
+};
+
+use crate::{inet, unix, SockDiagBuffer, SOCK_DIAG_BY_FAMILY};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SockDiagMessage {

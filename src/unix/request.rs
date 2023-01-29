@@ -2,11 +2,13 @@
 
 use std::convert::TryFrom;
 
-use crate::{
-    constants::*,
+use netlink_packet_utils::{
+    buffer,
     traits::{Emitable, Parseable},
     DecodeError,
 };
+
+use crate::constants::*;
 
 pub const UNIX_REQUEST_LEN: usize = 24;
 

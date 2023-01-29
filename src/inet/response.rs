@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-use smallvec::SmallVec;
 use std::time::Duration;
 
-use crate::{
-    inet::{
-        nlas::{Nla, NlaBuffer, NlasIterator},
-        SocketId, SocketIdBuffer,
-    },
+use anyhow::Context;
+use netlink_packet_utils::{
+    buffer,
+    nla::{NlaBuffer, NlasIterator},
     traits::{Emitable, Parseable, ParseableParametrized},
     DecodeError,
 };
+use smallvec::SmallVec;
+
+use crate::inet::{nlas::Nla, SocketId, SocketIdBuffer};
 
 /// The type of timer that is currently active for a TCP socket.
 #[derive(Debug, PartialEq, Eq, Clone)]

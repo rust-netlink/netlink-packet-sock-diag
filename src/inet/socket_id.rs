@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-use byteorder::{BigEndian, ByteOrder};
 use std::{
     convert::{TryFrom, TryInto},
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use crate::{
-    constants::*,
+use byteorder::{BigEndian, ByteOrder};
+use netlink_packet_utils::{
+    buffer,
     traits::{Emitable, ParseableParametrized},
     DecodeError,
 };
+
+use crate::constants::*;
 
 pub const SOCKET_ID_LEN: usize = 48;
 

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+use netlink_packet_utils::traits::{Emitable, Parseable};
+
 use crate::{
     constants::*,
-    traits::{Emitable, Parseable},
     unix::{
         nlas::Nla, ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseBuffer,
         UnixResponseHeader,
