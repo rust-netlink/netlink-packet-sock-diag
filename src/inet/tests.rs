@@ -10,14 +10,15 @@ use netlink_packet_utils::traits::{Emitable, Parseable};
 use crate::{
     constants::*,
     inet::{
-        nlas::Nla, ExtensionFlags, InetRequest, InetRequestBuffer, InetResponse,
-        InetResponseBuffer, InetResponseHeader, SocketId, StateFlags, Timer,
+        nlas::Nla, ExtensionFlags, InetRequest, InetRequestBuffer,
+        InetResponse, InetResponseBuffer, InetResponseHeader, SocketId,
+        StateFlags, Timer,
     },
 };
 
 lazy_static! {
     static ref REQ_UDP: InetRequest = InetRequest {
-        family: AF_INET as u8,
+        family: AF_INET,
         protocol: IPPROTO_UDP,
         extensions: ExtensionFlags::empty(),
         states: StateFlags::ESTABLISHED,
@@ -48,8 +49,10 @@ static REQ_UDP_BUF: [u8; 56] = [
 
 #[test]
 fn parse_udp_req() {
-    let parsed =
-        InetRequest::parse(&InetRequestBuffer::new_checked(&&REQ_UDP_BUF[..]).unwrap()).unwrap();
+    let parsed = InetRequest::parse(
+        &InetRequestBuffer::new_checked(&&REQ_UDP_BUF[..]).unwrap(),
+    )
+    .unwrap();
     assert_eq!(parsed, *REQ_UDP);
 }
 
@@ -64,7 +67,7 @@ fn emit_udp_req() {
 lazy_static! {
     static ref RESP_TCP: InetResponse = InetResponse {
         header: InetResponseHeader {
-            family: AF_INET as u8,
+            family: AF_INET,
             state: TCP_ESTABLISHED,
             timer: Some(Timer::KeepAlive(Duration::from_millis(0x0000_6080))),
             recv_queue: 0,
@@ -75,7 +78,9 @@ lazy_static! {
                 source_port: 60180,
                 destination_port: 443,
                 source_address: IpAddr::V4(Ipv4Addr::new(192, 168, 178, 60)),
-                destination_address: IpAddr::V4(Ipv4Addr::new(172, 217, 23, 131)),
+                destination_address: IpAddr::V4(Ipv4Addr::new(
+                    172, 217, 23, 131
+                )),
                 interface_id: 0,
                 cookie: [0x52, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
             },
@@ -118,8 +123,10 @@ static RESP_TCP_BUF: [u8; 80] = [
 
 #[test]
 fn parse_tcp_resp() {
-    let parsed =
-        InetResponse::parse(&InetResponseBuffer::new_checked(&&RESP_TCP_BUF[..]).unwrap()).unwrap();
+    let parsed = InetResponse::parse(
+        &InetResponseBuffer::new_checked(&&RESP_TCP_BUF[..]).unwrap(),
+    )
+    .unwrap();
     assert_eq!(parsed, *RESP_TCP);
 }
 

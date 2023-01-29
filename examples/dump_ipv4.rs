@@ -33,15 +33,16 @@ fn main() {
 
     let mut buf = vec![0; packet.header.length as usize];
 
-    // Before calling serialize, it is important to check that the buffer in which
-    // we're emitting is big enough for the packet, other `serialize()` panics.
+    // Before calling serialize, it is important to check that the buffer in
+    // which we're emitting is big enough for the packet, other
+    // `serialize()` panics.
     assert_eq!(buf.len(), packet.buffer_len());
 
     packet.serialize(&mut buf[..]);
 
-    println!(">>> {:?}", packet);
+    println!(">>> {packet:?}");
     if let Err(e) = socket.send(&buf[..], 0) {
-        println!("SEND ERROR {}", e);
+        println!("SEND ERROR {e}");
         return;
     }
 
@@ -50,13 +51,16 @@ fn main() {
     while let Ok(size) = socket.recv(&mut &mut receive_buffer[..], 0) {
         loop {
             let bytes = &receive_buffer[offset..];
-            let rx_packet = <NetlinkMessage<SockDiagMessage>>::deserialize(bytes).unwrap();
-            println!("<<< {:?}", rx_packet);
+            let rx_packet =
+                <NetlinkMessage<SockDiagMessage>>::deserialize(bytes).unwrap();
+            println!("<<< {rx_packet:?}");
 
             match rx_packet.payload {
                 NetlinkPayload::Noop | NetlinkPayload::Ack(_) => {}
-                NetlinkPayload::InnerMessage(SockDiagMessage::InetResponse(response)) => {
-                    println!("{:#?}", response);
+                NetlinkPayload::InnerMessage(
+                    SockDiagMessage::InetResponse(response),
+                ) => {
+                    println!("{response:#?}");
                 }
                 NetlinkPayload::Done => {
                     println!("Done!");

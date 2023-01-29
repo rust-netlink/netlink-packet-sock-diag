@@ -295,7 +295,9 @@ impl nla::Nla for Nla {
             #[cfg(feature = "rich_nlas")]
             TcpInfo(ref value) => value.emit(buffer),
             #[cfg(not(feature = "rich_nlas"))]
-            TcpInfo(ref bytes) => buffer[..bytes.len()].copy_from_slice(&bytes[..]),
+            TcpInfo(ref bytes) => {
+                buffer[..bytes.len()].copy_from_slice(&bytes[..])
+            }
             Congestion(ref s) => {
                 buffer[..s.len()].copy_from_slice(s.as_bytes());
                 buffer[s.len()] = 0;
@@ -303,7 +305,9 @@ impl nla::Nla for Nla {
             Tos(b) | Tc(b) | Shutdown(b) | Protocol(b) => buffer[0] = b,
             SkV6Only(value) => buffer[0] = value.into(),
             MemInfo(ref value) => value.emit(buffer),
-            Mark(value) | ClassId(value) => NativeEndian::write_u32(buffer, value),
+            Mark(value) | ClassId(value) => {
+                NativeEndian::write_u32(buffer, value)
+            }
             Other(ref attr) => attr.emit_value(buffer),
         }
     }
@@ -315,7 +319,8 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
         Ok(match buf.kind() {
             INET_DIAG_MEMINFO => {
                 let err = "invalid INET_DIAG_MEMINFO value";
-                let buf = LegacyMemInfoBuffer::new_checked(payload).context(err)?;
+                let buf =
+                    LegacyMemInfoBuffer::new_checked(payload).context(err)?;
                 Self::LegacyMemInfo(LegacyMemInfo::parse(&buf).context(err)?)
             }
             #[cfg(feature = "rich_nlas")]
@@ -326,36 +331,45 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
             }
             #[cfg(not(feature = "rich_nlas"))]
             INET_DIAG_INFO => Self::TcpInfo(payload.to_vec()),
-            INET_DIAG_CONG => {
-                Self::Congestion(parse_string(payload).context("invalid INET_DIAG_CONG value")?)
-            }
-            INET_DIAG_TOS => Self::Tos(parse_u8(payload).context("invalid INET_DIAG_TOS value")?),
-            INET_DIAG_TCLASS => {
-                Self::Tc(parse_u8(payload).context("invalid INET_DIAG_TCLASS value")?)
-            }
+            INET_DIAG_CONG => Self::Congestion(
+                parse_string(payload)
+                    .context("invalid INET_DIAG_CONG value")?,
+            ),
+            INET_DIAG_TOS => Self::Tos(
+                parse_u8(payload).context("invalid INET_DIAG_TOS value")?,
+            ),
+            INET_DIAG_TCLASS => Self::Tc(
+                parse_u8(payload).context("invalid INET_DIAG_TCLASS value")?,
+            ),
             INET_DIAG_SKMEMINFO => {
                 let err = "invalid INET_DIAG_SKMEMINFO value";
                 let buf = MemInfoBuffer::new_checked(payload).context(err)?;
                 Self::MemInfo(MemInfo::parse(&buf).context(err)?)
             }
-            INET_DIAG_SHUTDOWN => {
-                Self::Shutdown(parse_u8(payload).context("invalid INET_DIAG_SHUTDOWN value")?)
-            }
-            INET_DIAG_PROTOCOL => {
-                Self::Protocol(parse_u8(payload).context("invalid INET_DIAG_PROTOCOL value")?)
-            }
-            INET_DIAG_SKV6ONLY => {
-                Self::SkV6Only(parse_u8(payload).context("invalid INET_DIAG_SKV6ONLY value")? != 0)
-            }
-            INET_DIAG_MARK => {
-                Self::Mark(parse_u32(payload).context("invalid INET_DIAG_MARK value")?)
-            }
-            INET_DIAG_CLASS_ID => {
-                Self::ClassId(parse_u32(payload).context("invalid INET_DIAG_CLASS_ID value")?)
-            }
-            kind => {
-                Self::Other(DefaultNla::parse(buf).context(format!("unknown NLA type {}", kind))?)
-            }
+            INET_DIAG_SHUTDOWN => Self::Shutdown(
+                parse_u8(payload)
+                    .context("invalid INET_DIAG_SHUTDOWN value")?,
+            ),
+            INET_DIAG_PROTOCOL => Self::Protocol(
+                parse_u8(payload)
+                    .context("invalid INET_DIAG_PROTOCOL value")?,
+            ),
+            INET_DIAG_SKV6ONLY => Self::SkV6Only(
+                parse_u8(payload)
+                    .context("invalid INET_DIAG_SKV6ONLY value")?
+                    != 0,
+            ),
+            INET_DIAG_MARK => Self::Mark(
+                parse_u32(payload).context("invalid INET_DIAG_MARK value")?,
+            ),
+            INET_DIAG_CLASS_ID => Self::ClassId(
+                parse_u32(payload)
+                    .context("invalid INET_DIAG_CLASS_ID value")?,
+            ),
+            kind => Self::Other(
+                DefaultNla::parse(buf)
+                    .context(format!("unknown NLA type {kind}"))?,
+            ),
         })
     }
 }
@@ -529,10 +543,10 @@ pub struct TcpInfo {
 
     pub pacing_rate: u64,
     pub max_pacing_rate: u64,
-    pub bytes_acked: u64,    // RFC4898 tcpEStatsAppHCThruOctetsAcked
+    pub bytes_acked: u64, // RFC4898 tcpEStatsAppHCThruOctetsAcked
     pub bytes_received: u64, // RFC4898 tcpEStatsAppHCThruOctetsReceived
-    pub segs_out: u32,       // RFC4898 tcpEStatsPerfSegsOut
-    pub segs_in: u32,        // RFC4898 tcpEStatsPerfSegsIn
+    pub segs_out: u32,    // RFC4898 tcpEStatsPerfSegsOut
+    pub segs_in: u32,     // RFC4898 tcpEStatsPerfSegsIn
 
     pub notsent_bytes: u32,
     pub min_rtt: u32,
@@ -553,9 +567,9 @@ pub struct TcpInfo {
     pub delivered: u32,
     pub delivered_ce: u32,
 
-    pub bytes_sent: u64,    // RFC4898 tcpEStatsPerfHCDataOctetsOut
+    pub bytes_sent: u64, // RFC4898 tcpEStatsPerfHCDataOctetsOut
     pub bytes_retrans: u64, // RFC4898 tcpEStatsPerfOctetsRetrans
-    pub dsack_dups: u32,    // RFC4898 tcpEStatsStackDSACKDups
+    pub dsack_dups: u32, // RFC4898 tcpEStatsStackDSACKDups
     /// reordering events seen
     pub reord_seen: u32,
 

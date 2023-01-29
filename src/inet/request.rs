@@ -97,18 +97,20 @@ bitflags! {
     /// This is a set of flags defining what kind of extended
     /// information to report.
     pub struct ExtensionFlags: u8 {
-        const MEMINFO = 1 << (INET_DIAG_MEMINFO as u16 - 1);
-        const INFO = 1 << (INET_DIAG_INFO as u16 - 1);
-        const VEGASINFO = 1 << (INET_DIAG_VEGASINFO as u16 - 1);
-        const CONG = 1 << (INET_DIAG_CONG as u16 - 1);
-        const TOS = 1 << (INET_DIAG_TOS as u16 - 1);
-        const TCLASS = 1 << (INET_DIAG_TCLASS as u16 - 1);
-        const SKMEMINFO = 1 << (INET_DIAG_SKMEMINFO as u16 - 1);
-        const SHUTDOWN = 1 << (INET_DIAG_SHUTDOWN as u16 - 1);
+        const MEMINFO = 1 << (INET_DIAG_MEMINFO - 1);
+        const INFO = 1 << (INET_DIAG_INFO - 1);
+        const VEGASINFO = 1 << (INET_DIAG_VEGASINFO - 1);
+        const CONG = 1 << (INET_DIAG_CONG - 1);
+        const TOS = 1 << (INET_DIAG_TOS - 1);
+        const TCLASS = 1 << (INET_DIAG_TCLASS - 1);
+        const SKMEMINFO = 1 << (INET_DIAG_SKMEMINFO - 1);
+        const SHUTDOWN = 1 << (INET_DIAG_SHUTDOWN - 1);
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<InetRequestBuffer<&'a T>> for InetRequest {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<InetRequestBuffer<&'a T>>
+    for InetRequest
+{
     fn parse(buf: &InetRequestBuffer<&'a T>) -> Result<Self, DecodeError> {
         let err = "invalid socket_id value";
         let socket_id = SocketId::parse_with_param(

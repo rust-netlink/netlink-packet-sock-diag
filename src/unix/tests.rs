@@ -5,8 +5,8 @@ use netlink_packet_utils::traits::{Emitable, Parseable};
 use crate::{
     constants::*,
     unix::{
-        nlas::Nla, ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseBuffer,
-        UnixResponseHeader,
+        nlas::Nla, ShowFlags, StateFlags, UnixRequest, UnixResponse,
+        UnixResponseBuffer, UnixResponseHeader,
     },
 };
 
@@ -75,9 +75,10 @@ static LISTENING_BUF: [u8; 60] = [
 
 #[test]
 fn parse_listening() {
-    let parsed =
-        UnixResponse::parse(&UnixResponseBuffer::new_checked(&&LISTENING_BUF[..]).unwrap())
-            .unwrap();
+    let parsed = UnixResponse::parse(
+        &UnixResponseBuffer::new_checked(&&LISTENING_BUF[..]).unwrap(),
+    )
+    .unwrap();
     assert_eq!(parsed, *LISTENING);
 }
 
@@ -142,9 +143,10 @@ static ESTABLISHED_BUF: [u8; 68] = [
 
 #[test]
 fn parse_established() {
-    let parsed =
-        UnixResponse::parse(&UnixResponseBuffer::new_checked(&&ESTABLISHED_BUF[..]).unwrap())
-            .unwrap();
+    let parsed = UnixResponse::parse(
+        &UnixResponseBuffer::new_checked(&&ESTABLISHED_BUF[..]).unwrap(),
+    )
+    .unwrap();
     assert_eq!(parsed, *ESTABLISHED);
 }
 

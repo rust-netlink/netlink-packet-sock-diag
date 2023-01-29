@@ -33,8 +33,7 @@ impl<T: AsRef<[u8]>> SockDiagBuffer<T> {
         let len = self.buffer.as_ref().len();
         if len < BUF_MIN_LEN {
             return Err(format!(
-                "invalid buffer: length is {} but packets are at least {} bytes",
-                len, BUF_MIN_LEN
+                "invalid buffer: length is {len} but packets are at least {BUF_MIN_LEN} bytes"
             )
             .into());
         }
@@ -58,7 +57,9 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> SockDiagBuffer<&'a mut T> {
     }
 }
 
-impl<'a, T: AsRef<[u8]>> ParseableParametrized<SockDiagBuffer<&'a T>, u16> for SockDiagMessage {
+impl<'a, T: AsRef<[u8]>> ParseableParametrized<SockDiagBuffer<&'a T>, u16>
+    for SockDiagMessage
+{
     fn parse_with_param(
         buf: &SockDiagBuffer<&'a T>,
         message_type: u16,
@@ -68,23 +69,36 @@ impl<'a, T: AsRef<[u8]>> ParseableParametrized<SockDiagBuffer<&'a T>, u16> for S
         let message = match (message_type, buf.family()) {
             (SOCK_DIAG_BY_FAMILY, AF_INET) => {
                 let err = "invalid AF_INET response";
-                let buf = inet::InetResponseBuffer::new_checked(buf.inner()).context(err)?;
-                InetResponse(Box::new(inet::InetResponse::parse(&buf).context(err)?))
+                let buf = inet::InetResponseBuffer::new_checked(buf.inner())
+                    .context(err)?;
+                InetResponse(Box::new(
+                    inet::InetResponse::parse(&buf).context(err)?,
+                ))
             }
             (SOCK_DIAG_BY_FAMILY, AF_INET6) => {
                 let err = "invalid AF_INET6 response";
-                let buf = inet::InetResponseBuffer::new_checked(buf.inner()).context(err)?;
-                InetResponse(Box::new(inet::InetResponse::parse(&buf).context(err)?))
+                let buf = inet::InetResponseBuffer::new_checked(buf.inner())
+                    .context(err)?;
+                InetResponse(Box::new(
+                    inet::InetResponse::parse(&buf).context(err)?,
+                ))
             }
             (SOCK_DIAG_BY_FAMILY, AF_UNIX) => {
                 let err = "invalid AF_UNIX response";
-                let buf = unix::UnixResponseBuffer::new_checked(buf.inner()).context(err)?;
-                UnixResponse(Box::new(unix::UnixResponse::parse(&buf).context(err)?))
+                let buf = unix::UnixResponseBuffer::new_checked(buf.inner())
+                    .context(err)?;
+                UnixResponse(Box::new(
+                    unix::UnixResponse::parse(&buf).context(err)?,
+                ))
             }
             (SOCK_DIAG_BY_FAMILY, af) => {
-                return Err(format!("unknown address family {}", af).into())
+                return Err(format!("unknown address family {af}").into())
             }
-            _ => return Err(format!("unknown message type {}", message_type).into()),
+            _ => {
+                return Err(
+                    format!("unknown message type {message_type}").into()
+                )
+            }
         };
         Ok(message)
     }
