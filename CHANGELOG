@@ -1,4 +1,14 @@
 # Changelog
+## [0.4.1] - 2023-01-29
+### Breaking changes
+ - N/A
+
+### New features
+ - N/A
+
+### Bug fixes
+ - Just refresh crates.io.
+
 ## [0.4.0] - 2023-01-29
 ### Breaking changes
  - Removed all reexports. (e3bb0f0)
