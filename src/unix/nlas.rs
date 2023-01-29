@@ -2,15 +2,15 @@
 
 use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
-
-pub use crate::utils::nla::{DefaultNla, NlaBuffer, NlasIterator};
-
-use crate::{
-    constants::*,
+use netlink_packet_utils::{
+    buffer,
+    nla::{self, DefaultNla, NlaBuffer},
     parsers::{parse_string, parse_u32, parse_u8},
     traits::{Emitable, Parseable},
     DecodeError,
 };
+
+use crate::constants::*;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Nla {
@@ -242,7 +242,7 @@ impl Emitable for MemInfo {
     }
 }
 
-impl crate::utils::nla::Nla for Nla {
+impl nla::Nla for Nla {
     fn value_len(&self) -> usize {
         use self::Nla::*;
         match *self {

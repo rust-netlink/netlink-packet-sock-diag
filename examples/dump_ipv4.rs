@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 
+use netlink_packet_core::{
+    NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST,
+};
 use netlink_packet_sock_diag::{
     constants::*,
     inet::{ExtensionFlags, InetRequest, SocketId, StateFlags},
-    NetlinkHeader, NetlinkMessage, NetlinkPayload, SockDiagMessage,
+    SockDiagMessage,
 };
 use netlink_sys::{protocols::NETLINK_SOCK_DIAG, Socket, SocketAddr};
 

@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-use smallvec::SmallVec;
 use std::convert::TryFrom;
+
+use anyhow::Context;
+use netlink_packet_utils::{
+    buffer,
+    nla::{NlaBuffer, NlasIterator},
+    traits::{Emitable, Parseable},
+    DecodeError,
+};
+use smallvec::SmallVec;
 
 use crate::{
     constants::*,
-    traits::{Emitable, Parseable},
-    unix::nlas::{MemInfo, Nla, NlaBuffer, NlasIterator},
-    DecodeError,
+    unix::nlas::{MemInfo, Nla},
 };
 
 pub const UNIX_RESPONSE_HEADER_LEN: usize = 16;

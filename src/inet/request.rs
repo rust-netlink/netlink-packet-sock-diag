@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+use netlink_packet_utils::{
+    buffer,
+    traits::{Emitable, Parseable, ParseableParametrized},
+    DecodeError,
+};
 
 use crate::{
     constants::*,
     inet::{SocketId, SocketIdBuffer},
-    traits::{Emitable, Parseable, ParseableParametrized},
-    DecodeError,
 };
 
 pub const REQUEST_LEN: usize = 56;

@@ -5,13 +5,14 @@ use std::{
     time::Duration,
 };
 
+use netlink_packet_utils::traits::{Emitable, Parseable};
+
 use crate::{
     constants::*,
     inet::{
         nlas::Nla, ExtensionFlags, InetRequest, InetRequestBuffer, InetResponse,
         InetResponseBuffer, InetResponseHeader, SocketId, StateFlags, Timer,
     },
-    traits::{Emitable, Parseable},
 };
 
 lazy_static! {
