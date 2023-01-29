@@ -44,7 +44,9 @@ pub struct UnixResponseHeader {
     pub cookie: [u8; 8],
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>> for UnixResponseHeader {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
+    for UnixResponseHeader
+{
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(Self {
             kind: buf.kind(),
@@ -64,7 +66,7 @@ impl Emitable for UnixResponseHeader {
 
     fn emit(&self, buf: &mut [u8]) {
         let mut buf = UnixResponseBuffer::new(buf);
-        buf.set_family(AF_UNIX as u8);
+        buf.set_family(AF_UNIX);
         buf.set_kind(self.kind);
         buf.set_state(self.state);
         buf.set_pad(0);
@@ -182,12 +184,16 @@ impl UnixResponse {
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> UnixResponseBuffer<&'a T> {
-    pub fn nlas(&self) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
+    pub fn nlas(
+        &self,
+    ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
         NlasIterator::new(self.payload())
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>> for SmallVec<[Nla; 8]> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
+    for SmallVec<[Nla; 8]>
+{
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
@@ -197,12 +203,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>> for Small
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>> for UnixResponse {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
+    for UnixResponse
+{
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let header =
-            UnixResponseHeader::parse(buf).context("failed to parse inet response header")?;
-        let nlas =
-            SmallVec::<[Nla; 8]>::parse(buf).context("failed to parse inet response NLAs")?;
+        let header = UnixResponseHeader::parse(buf)
+            .context("failed to parse inet response header")?;
+        let nlas = SmallVec::<[Nla; 8]>::parse(buf)
+            .context("failed to parse inet response NLAs")?;
         Ok(UnixResponse { header, nlas })
     }
 }

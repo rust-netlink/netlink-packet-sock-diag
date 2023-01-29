@@ -74,7 +74,9 @@ pub struct InetResponseHeader {
     pub inode: u32,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>> for InetResponseHeader {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
+    for InetResponseHeader
+{
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let err = "invalid socket_id value";
         let socket_id = SocketId::parse_with_param(
@@ -165,12 +167,16 @@ pub struct InetResponse {
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> InetResponseBuffer<&'a T> {
-    pub fn nlas(&self) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
+    pub fn nlas(
+        &self,
+    ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
         NlasIterator::new(self.payload())
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>> for SmallVec<[Nla; 8]> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
+    for SmallVec<[Nla; 8]>
+{
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
@@ -180,12 +186,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>> for Small
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>> for InetResponse {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
+    for InetResponse
+{
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let header =
-            InetResponseHeader::parse(buf).context("failed to parse inet response header")?;
-        let nlas =
-            SmallVec::<[Nla; 8]>::parse(buf).context("failed to parse inet response NLAs")?;
+        let header = InetResponseHeader::parse(buf)
+            .context("failed to parse inet response header")?;
+        let nlas = SmallVec::<[Nla; 8]>::parse(buf)
+            .context("failed to parse inet response NLAs")?;
         Ok(InetResponse { header, nlas })
     }
 }

@@ -55,22 +55,30 @@ impl SocketId {
             source_port: 0,
             destination_port: 0,
             source_address: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
-            destination_address: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
+            destination_address: IpAddr::V6(Ipv6Addr::new(
+                0, 0, 0, 0, 0, 0, 0, 0,
+            )),
             interface_id: 0,
             cookie: [0; 8],
         }
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8> for SocketId {
-    fn parse_with_param(buf: &SocketIdBuffer<&'a T>, af: u8) -> Result<Self, DecodeError> {
+impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8>
+    for SocketId
+{
+    fn parse_with_param(
+        buf: &SocketIdBuffer<&'a T>,
+        af: u8,
+    ) -> Result<Self, DecodeError> {
         let (source_address, destination_address) = match af {
             AF_INET => {
                 let s = &buf.source_address()[..4];
                 let source = IpAddr::V4(Ipv4Addr::new(s[0], s[1], s[2], s[3]));
 
                 let s = &buf.destination_address()[..4];
-                let destination = IpAddr::V4(Ipv4Addr::new(s[0], s[1], s[2], s[3]));
+                let destination =
+                    IpAddr::V4(Ipv4Addr::new(s[0], s[1], s[2], s[3]));
 
                 (source, destination)
             }
@@ -78,14 +86,14 @@ impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8> f
                 let bytes: [u8; 16] = buf.source_address().try_into().unwrap();
                 let source = IpAddr::V6(Ipv6Addr::from(bytes));
 
-                let bytes: [u8; 16] = buf.destination_address().try_into().unwrap();
+                let bytes: [u8; 16] =
+                    buf.destination_address().try_into().unwrap();
                 let destination = IpAddr::V6(Ipv6Addr::from(bytes));
                 (source, destination)
             }
             _ => {
                 return Err(DecodeError::from(format!(
-                    "unsupported address family {}: expected AF_INET ({}) or AF_INET6 ({})",
-                    af, AF_INET, AF_INET6
+                    "unsupported address family {af}: expected AF_INET ({AF_INET}) or AF_INET6 ({AF_INET6})"
                 )));
             }
         };
@@ -112,11 +120,16 @@ impl Emitable for SocketId {
         let mut buffer = SocketIdBuffer::new(buffer);
 
         BigEndian::write_u16(buffer.source_port_mut(), self.source_port);
-        BigEndian::write_u16(buffer.destination_port_mut(), self.destination_port);
+        BigEndian::write_u16(
+            buffer.destination_port_mut(),
+            self.destination_port,
+        );
 
         let mut address_buf: [u8; 16] = [0; 16];
         match self.source_address {
-            IpAddr::V4(ip) => address_buf[0..4].copy_from_slice(&ip.octets()[..]),
+            IpAddr::V4(ip) => {
+                address_buf[0..4].copy_from_slice(&ip.octets()[..])
+            }
             IpAddr::V6(ip) => address_buf.copy_from_slice(&ip.octets()[..]),
         }
 
@@ -126,7 +139,9 @@ impl Emitable for SocketId {
 
         address_buf = [0; 16];
         match self.destination_address {
-            IpAddr::V4(ip) => address_buf[0..4].copy_from_slice(&ip.octets()[..]),
+            IpAddr::V4(ip) => {
+                address_buf[0..4].copy_from_slice(&ip.octets()[..])
+            }
             IpAddr::V6(ip) => address_buf.copy_from_slice(&ip.octets()[..]),
         }
 

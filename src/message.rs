@@ -79,7 +79,10 @@ impl NetlinkSerializable for SockDiagMessage {
 
 impl NetlinkDeserializable for SockDiagMessage {
     type Error = DecodeError;
-    fn deserialize(header: &NetlinkHeader, payload: &[u8]) -> Result<Self, Self::Error> {
+    fn deserialize(
+        header: &NetlinkHeader,
+        payload: &[u8],
+    ) -> Result<Self, Self::Error> {
         let buffer = SockDiagBuffer::new_checked(&payload)?;
         SockDiagMessage::parse_with_param(&buffer, header.message_type)
     }
