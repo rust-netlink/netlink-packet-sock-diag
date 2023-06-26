@@ -56,13 +56,19 @@ fn main() {
             println!("<<< {rx_packet:?}");
 
             match rx_packet.payload {
-                NetlinkPayload::Noop | NetlinkPayload::Ack(_) => {}
+                NetlinkPayload::Noop => {}
+                NetlinkPayload::Error(e) => {
+                    if e.code.is_some() {
+                        eprintln!("{e:?}");
+                        return;
+                    }
+                }
                 NetlinkPayload::InnerMessage(
                     SockDiagMessage::InetResponse(response),
                 ) => {
                     println!("{response:#?}");
                 }
-                NetlinkPayload::Done => {
+                NetlinkPayload::Done(_) => {
                     println!("Done!");
                     return;
                 }
