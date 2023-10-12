@@ -21,6 +21,9 @@ jobs:
           rustup update stable
           rustup component add llvm-tools-preview
 
+      - name: Test in default configuration
+        run: cargo test
+
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
