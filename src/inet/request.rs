@@ -111,6 +111,7 @@ bitflags! {
 impl<'a, T: AsRef<[u8]> + 'a> Parseable<InetRequestBuffer<&'a T>>
     for InetRequest
 {
+    type Error = DecodeError;
     fn parse(buf: &InetRequestBuffer<&'a T>) -> Result<Self, DecodeError> {
         let err = "invalid socket_id value";
         let socket_id = SocketId::parse_with_param(

@@ -67,6 +67,7 @@ impl SocketId {
 impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8>
     for SocketId
 {
+    type Error = DecodeError;
     fn parse_with_param(
         buf: &SocketIdBuffer<&'a T>,
         af: u8,

@@ -60,6 +60,7 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> SockDiagBuffer<&'a mut T> {
 impl<'a, T: AsRef<[u8]>> ParseableParametrized<SockDiagBuffer<&'a T>, u16>
     for SockDiagMessage
 {
+    type Error =  DecodeError;
     fn parse_with_param(
         buf: &SockDiagBuffer<&'a T>,
         message_type: u16,
