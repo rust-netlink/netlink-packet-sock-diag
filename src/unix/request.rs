@@ -88,6 +88,7 @@ bitflags! {
 impl<'a, T: AsRef<[u8]> + 'a> Parseable<UnixRequestBuffer<&'a T>>
     for UnixRequest
 {
+    type Error = DecodeError;
     fn parse(buf: &UnixRequestBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(Self {
             state_flags: StateFlags::from_bits_truncate(buf.state_flags()),

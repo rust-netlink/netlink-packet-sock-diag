@@ -38,6 +38,7 @@ pub struct LegacyMemInfo {
 }
 
 impl<T: AsRef<[u8]>> Parseable<LegacyMemInfoBuffer<T>> for LegacyMemInfo {
+    type Error = DecodeError;
     fn parse(buf: &LegacyMemInfoBuffer<T>) -> Result<Self, DecodeError> {
         Ok(Self {
             receive_queue: buf.receive_queue(),
@@ -184,6 +185,7 @@ pub struct MemInfo {
 }
 
 impl<T: AsRef<[u8]>> Parseable<MemInfoBuffer<T>> for MemInfo {
+    type Error = DecodeError;
     fn parse(buf: &MemInfoBuffer<T>) -> Result<Self, DecodeError> {
         Ok(Self {
             receive_queue: buf.receive_queue(),
@@ -314,6 +316,7 @@ impl nla::Nla for Nla {
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
+    type Error = DecodeError;
     fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
         let payload = buf.value();
         Ok(match buf.kind() {

@@ -47,6 +47,7 @@ pub struct UnixResponseHeader {
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
     for UnixResponseHeader
 {
+    type Error = DecodeError;
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(Self {
             kind: buf.kind(),
@@ -187,13 +188,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> UnixResponseBuffer<&'a T> {
     pub fn nlas(
         &self,
     ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
-        NlasIterator::new(self.payload())
+        NlasIterator::new(self.payload()).map(|nla| nla.map_err(Into::into))
     }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
     for SmallVec<[Nla; 8]>
 {
+    type Error = DecodeError;
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
@@ -206,6 +208,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
     for UnixResponse
 {
+    type Error = DecodeError;
     fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let header = UnixResponseHeader::parse(buf)
             .context("failed to parse inet response header")?;

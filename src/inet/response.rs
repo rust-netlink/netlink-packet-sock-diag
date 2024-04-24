@@ -77,6 +77,7 @@ pub struct InetResponseHeader {
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
     for InetResponseHeader
 {
+    type Error = DecodeError;
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let err = "invalid socket_id value";
         let socket_id = SocketId::parse_with_param(
@@ -170,13 +171,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> InetResponseBuffer<&'a T> {
     pub fn nlas(
         &self,
     ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
-        NlasIterator::new(self.payload())
+        NlasIterator::new(self.payload()).map(|res| res.map_err(Into::into))
     }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
     for SmallVec<[Nla; 8]>
 {
+    type Error = DecodeError;
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
@@ -189,6 +191,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
     for InetResponse
 {
+    type Error = DecodeError;
     fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
         let header = InetResponseHeader::parse(buf)
             .context("failed to parse inet response header")?;
