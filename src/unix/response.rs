@@ -13,7 +13,7 @@ use smallvec::SmallVec;
 
 use crate::{
     constants::*,
-    unix::nlas::{MemInfo, Nla},
+    unix::nlas::{MemInfo, Nla, UnixDiagName},
 };
 
 pub const UNIX_RESPONSE_HEADER_LEN: usize = 16;
@@ -92,7 +92,7 @@ impl UnixResponse {
         })
     }
 
-    pub fn name(&self) -> Option<&String> {
+    pub fn name(&self) -> Option<&UnixDiagName> {
         self.nlas.iter().find_map(|nla| {
             if let Nla::Name(name) = nla {
                 Some(name)
