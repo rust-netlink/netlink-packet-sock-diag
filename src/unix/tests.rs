@@ -5,8 +5,9 @@ use netlink_packet_utils::traits::{Emitable, Parseable};
 use crate::{
     constants::*,
     unix::{
-        nlas::Nla, ShowFlags, StateFlags, UnixRequest, UnixResponse,
-        UnixResponseBuffer, UnixResponseHeader,
+        nlas::{Nla, UnixDiagName},
+        ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseBuffer,
+        UnixResponseHeader,
     },
 };
 
@@ -39,7 +40,7 @@ lazy_static! {
             cookie: [0xa0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
         },
         nlas: smallvec![
-            Nla::Name("/tmp/.ICE-unix/1151".to_string()),
+            Nla::Name(UnixDiagName::Pathname("/tmp/.ICE-unix/1151".into())),
             Nla::ReceiveQueueLength(0, 128),
             Nla::Shutdown(0),
         ]
@@ -101,7 +102,7 @@ lazy_static! {
             cookie: [0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
         },
         nlas: smallvec![
-            Nla::Name("/run/user/1000/bus".to_string()),
+            Nla::Name(UnixDiagName::Pathname("/run/user/1000/bus".into())),
             Nla::Peer(31062),
             Nla::ReceiveQueueLength(0, 0),
             Nla::Shutdown(0),
@@ -164,4 +165,66 @@ fn emit_socket_info() {
     let mut buf = vec![0xff; SOCKET_INFO.buffer_len()];
     SOCKET_INFO.emit(&mut buf);
     assert_eq!(&buf[..], &SOCKET_INFO_BUF[..]);
+}
+
+lazy_static! {
+    static ref ABSTRACT_ADDRESS: UnixResponse = UnixResponse {
+        header: UnixResponseHeader {
+            kind: SOCK_STREAM,
+            state: TCP_LISTEN,
+            inode: 20238,
+            cookie: [0xa0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        },
+        nlas: smallvec![
+            Nla::Name(UnixDiagName::Abstract(
+                "1c1440c5f5e2a52e/bus/systemd/\0/bus-api-user".into()
+            )),
+            Nla::ReceiveQueueLength(0, 128),
+            Nla::Shutdown(0),
+        ]
+    };
+}
+
+#[rustfmt::skip]
+static ABSTRACT_ADDRESS_BUF: [u8; 84] = [
+    0x01, // family: AF_UNIX
+    0x01, // type: SOCK_STREAM
+    0x0a, // state: TCP_LISTEN
+    0x00, // padding
+    0x0e, 0x4f, 0x00, 0x00, // inode number
+    0xa0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // cookie
+
+    // NLAs
+    0x30, 0x00, // length: 48
+    0x00, 0x00, // type: UNIX_DIAG_NAME
+    // value: \01c1440c5f5e2a52e/bus/systemd/\0/bus-api-user
+    0x00, 0x31, 0x63, 0x31, 0x34, 0x34, 0x30, 0x63, 0x35, 0x66, 0x35, 0x65, 0x32, 0x61, 0x35, 0x32, 0x65, 0x2f, 0x62, 0x75, 0x73, 0x2f, 0x73, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x64, 0x2f, 0x00, 0x2f, 0x62, 0x75, 0x73, 0x2d, 0x61, 0x70, 0x69, 0x2d, 0x75, 0x73, 0x65, 0x72,
+
+    0x0c, 0x00, // length: 12
+    0x04, 0x00, // type: UNIX_DIAG_RQLEN
+    // value: ReceiveQueueLength(0, 128)
+    0x00, 0x00, 0x00, 0x00,
+    0x80, 0x00, 0x00, 0x00,
+
+    0x05, 0x00, // length: 5
+    0x06, 0x00, // type: UNIX_DIAG_SHUTDOWN
+    0x00, // value: 0
+    0x00, 0x00, 0x00 // padding
+];
+
+#[test]
+fn parse_abstract_address() {
+    let parsed = UnixResponse::parse(
+        &UnixResponseBuffer::new_checked(&&ABSTRACT_ADDRESS_BUF[..]).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(parsed, *ABSTRACT_ADDRESS);
+}
+
+#[test]
+fn emit_abstract_address() {
+    assert_eq!(ABSTRACT_ADDRESS.buffer_len(), 84);
+    let mut buf = vec![0xff; ABSTRACT_ADDRESS.buffer_len()];
+    ABSTRACT_ADDRESS.emit(&mut buf);
+    assert_eq!(&buf[..], &ABSTRACT_ADDRESS_BUF[..]);
 }

@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT
 
+use std::{
+    ffi::{CStr, OsString},
+    os::unix::ffi::{OsStrExt, OsStringExt},
+};
+
 use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
 use netlink_packet_utils::{
     buffer,
     nla::{self, DefaultNla, NlaBuffer},
-    parsers::{parse_string, parse_u32, parse_u8},
+    parsers::{parse_u32, parse_u8},
     traits::{Emitable, Parseable},
     DecodeError,
 };
@@ -13,10 +18,62 @@ use netlink_packet_utils::{
 use crate::constants::*;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
+pub enum UnixDiagName {
+    /// Filesystem pathname to which the socket was bound.
+    Pathname(OsString),
+    /// Abstract socket address to which the socket was bound.
+    Abstract(Vec<u8>),
+}
+
+impl<T: AsRef<[u8]>> Parseable<T> for UnixDiagName {
+    fn parse(buf: &T) -> Result<Self, DecodeError> {
+        let buf = buf.as_ref();
+        if let Some((0, address)) = buf.split_first() {
+            Ok(UnixDiagName::Abstract(address.to_owned()))
+        } else {
+            Ok(UnixDiagName::Pathname(OsString::from_vec(
+                CStr::from_bytes_with_nul(buf)
+                    .context("pathname is not null-terminated")?
+                    .to_owned()
+                    .into(),
+            )))
+        }
+    }
+}
+
+impl Emitable for UnixDiagName {
+    fn buffer_len(&self) -> usize {
+        match self {
+            UnixDiagName::Pathname(pathname) => pathname.len() + 1,
+            UnixDiagName::Abstract(address) => address.len() + 1,
+        }
+    }
+
+    fn emit(&self, buffer: &mut [u8]) {
+        match self {
+            UnixDiagName::Pathname(pathname) => {
+                let (last, first) = buffer
+                    .split_last_mut()
+                    .expect("buffer should not be empty");
+                first.copy_from_slice(pathname.as_bytes());
+                *last = 0;
+            }
+            UnixDiagName::Abstract(address) => {
+                let (first, last) = buffer
+                    .split_first_mut()
+                    .expect("buffer should not be empty");
+                *first = 0;
+                last.copy_from_slice(address);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Nla {
-    /// Path to which the socket was bound. This attribute is known as
+    /// Name to which the socket was bound. This attribute is known as
     /// `UNIX_DIAG_NAME` in the kernel.
-    Name(String),
+    Name(UnixDiagName),
     /// VFS information for this socket. This attribute is known as
     /// `UNIX_DIAG_VFS` in the kernel.
     Vfs(Vfs),
@@ -246,8 +303,7 @@ impl nla::Nla for Nla {
     fn value_len(&self) -> usize {
         use self::Nla::*;
         match *self {
-            // +1 because we need to append a null byte
-            Name(ref s) => s.as_bytes().len() + 1,
+            Name(ref s) => s.buffer_len(),
             Vfs(_) => VFS_LEN,
             Peer(_) => 4,
             PendingConnections(ref v) => 4 * v.len(),
@@ -261,10 +317,7 @@ impl nla::Nla for Nla {
     fn emit_value(&self, buffer: &mut [u8]) {
         use self::Nla::*;
         match *self {
-            Name(ref s) => {
-                buffer[..s.len()].copy_from_slice(s.as_bytes());
-                buffer[s.len()] = 0;
-            }
+            Name(ref s) => s.emit(buffer),
             Vfs(ref value) => value.emit(buffer),
             Peer(value) => NativeEndian::write_u32(buffer, value),
             PendingConnections(ref values) => {
@@ -301,10 +354,10 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
     fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
         let payload = buf.value();
         Ok(match buf.kind() {
-            UNIX_DIAG_NAME => {
-                let err = "invalid UNIX_DIAG_NAME value";
-                Self::Name(parse_string(payload).context(err)?)
-            }
+            UNIX_DIAG_NAME => Self::Name(
+                UnixDiagName::parse(&payload)
+                    .context("invalid UNIX_DIAG_NAME value")?,
+            ),
             UNIX_DIAG_VFS => {
                 let err = "invalid UNIX_DIAG_VFS value";
                 let buf = VfsBuffer::new_checked(payload).context(err)?;
