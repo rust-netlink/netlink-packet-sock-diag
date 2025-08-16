@@ -26,12 +26,8 @@ pub enum Nla {
     /// attribute is reported for listening sockets only. This
     /// attribute is known as `UNIX_DIAG_ICONS` in the kernel.
     PendingConnections(Vec<u32>),
-    /// This attribute corresponds to the `UNIX_DIAG_RQLEN`. It
-    /// reports the length of the socket receive queue, and the queue
-    /// size limit. Note that for **listening** sockets the receive
-    /// queue is used to store actual data sent by other sockets. It
-    /// is used to store pending connections. So the meaning of this
-    /// attribute differs for listening sockets.
+    /// This attribute corresponds to the `UNIX_DIAG_RQLEN`. Actual meaning of
+    /// this attribute differs depending on the type of socket.
     ///
     /// For **listening** sockets:
     ///
