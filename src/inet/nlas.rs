@@ -469,7 +469,7 @@ pub struct TcpInfo {
     /// `TCP_CA_DISORDER`, `TCP_CA_CWR`, `TCP_CA_RECOVERY`,
     /// `TCP_CA_LOSS`
     pub ca_state: u8,
-    ///
+    /// Number of retransmits since the last ACK
     pub retransmits: u8,
     pub probes: u8,
     pub backoff: u8,
@@ -499,7 +499,7 @@ pub struct TcpInfo {
     pub sacked: u32,
     /// Number of segments that have been lost
     pub lost: u32,
-    /// Number of segments that have been retransmitted
+    /// Number of segments that are currently being retransmitted
     pub retrans: u32,
     /// Number of segments that have been FACKed
     pub fackets: u32,
@@ -531,6 +531,7 @@ pub struct TcpInfo {
     pub rcv_rtt: u32,
     pub rcv_space: u32,
 
+    /// Number of segments that have been retransmitted during lifetime of the socket
     pub total_retrans: u32,
 
     pub pacing_rate: u64,
