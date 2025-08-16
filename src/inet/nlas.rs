@@ -149,7 +149,7 @@ pub struct MemInfo {
     /// Memory used for packets that have been passed down the network
     /// stack, i.e. that are either in the QDisc or device driver
     /// queues. This attribute is known as `sk_wmem_alloc` in the
-    /// kernel. See also [`send_queue`].
+    /// kernel. See also [`send_queue`](#structfield.send_queue).
     pub bottom_send_queues: u32,
     /// The amount of memory already allocated for this socket but
     /// currently unused. When more memory is needed either for
