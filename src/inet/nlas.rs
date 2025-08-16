@@ -85,8 +85,7 @@ buffer!(MemInfoBuffer(MEM_INFO_LEN) {
 /// documentation with a huge grain of salt. Please report any error
 /// you may notice. Here are the references I used:
 ///
-/// - [https://wiki.linuxfoundation.org/networking/sk_buff](a short introduction
-///   to `sk_buff`, the struct used in the kernel to store packets)
+/// - [a short introduction to `sk_buff`, the struct used in the kernel to store packets](https://wiki.linuxfoundation.org/networking/sk_buff)
 /// - [vger.kernel.org has a lot of documentation about the low level network stack APIs](http://vger.kernel.org/~davem/skb_data.html)
 /// - [thorough high level explanation of buffering in the network stack](https://www.coverfire.com/articles/queueing-in-the-linux-network-stack/)
 /// - [understanding the backlog queue](http://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html)
