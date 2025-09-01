@@ -2,12 +2,9 @@
 
 use std::time::Duration;
 
-use anyhow::Context;
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    traits::{Emitable, Parseable, ParseableParametrized},
-    DecodeError,
+use netlink_packet_core::{
+    buffer, fields, getter, setter, DecodeError, Emitable, ErrorContext,
+    NlaBuffer, NlasIterator, Parseable, ParseableParametrized,
 };
 use smallvec::SmallVec;
 

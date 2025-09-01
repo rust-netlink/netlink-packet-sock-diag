@@ -6,10 +6,9 @@ use std::{
 };
 
 use byteorder::{BigEndian, ByteOrder};
-use netlink_packet_utils::{
-    buffer,
-    traits::{Emitable, ParseableParametrized},
-    DecodeError,
+use netlink_packet_core::{
+    buffer, fields, getter, setter, DecodeError, Emitable,
+    ParseableParametrized,
 };
 
 use crate::constants::*;
