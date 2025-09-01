@@ -228,6 +228,7 @@ pub const SOCK_RAW: u8 = libc::SOCK_RAW as u8;
 /// Provides a reliable datagram layer that does not guarantee
 /// ordering.
 pub const SOCK_RDM: u8 = libc::SOCK_RDM as u8;
+#[allow(deprecated)]
 /// Obsolete and should not be used in new programs; see `packet(7)`.
 pub const SOCK_PACKET: u8 = libc::SOCK_PACKET as u8;
 
