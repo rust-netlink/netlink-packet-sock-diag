@@ -5,10 +5,9 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use byteorder::{BigEndian, ByteOrder};
 use netlink_packet_core::{
-    buffer, fields, getter, setter, DecodeError, Emitable,
-    ParseableParametrized,
+    buffer, emit_u16_be, fields, getter, parse_u16_be, setter, DecodeError,
+    Emitable, ParseableParametrized,
 };
 
 use crate::constants::*;
@@ -98,8 +97,8 @@ impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8>
         };
 
         Ok(Self {
-            source_port: BigEndian::read_u16(buf.source_port()),
-            destination_port: BigEndian::read_u16(buf.destination_port()),
+            source_port: parse_u16_be(buf.source_port())?,
+            destination_port: parse_u16_be(buf.destination_port())?,
             source_address,
             destination_address,
             interface_id: buf.interface_id(),
@@ -118,11 +117,9 @@ impl Emitable for SocketId {
     fn emit(&self, buffer: &mut [u8]) {
         let mut buffer = SocketIdBuffer::new(buffer);
 
-        BigEndian::write_u16(buffer.source_port_mut(), self.source_port);
-        BigEndian::write_u16(
-            buffer.destination_port_mut(),
-            self.destination_port,
-        );
+        emit_u16_be(buffer.source_port_mut(), self.source_port).unwrap();
+        emit_u16_be(buffer.destination_port_mut(), self.destination_port)
+            .unwrap();
 
         let mut address_buf: [u8; 16] = [0; 16];
         match self.source_address {

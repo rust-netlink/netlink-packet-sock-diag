@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use byteorder::{ByteOrder, NativeEndian};
 use netlink_packet_core::{
-    buffer, fields, getter, parse_string, parse_u32, parse_u8, setter,
-    DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer, Parseable,
+    buffer, emit_u32, fields, getter, parse_string, parse_u32, parse_u8,
+    setter, DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer,
+    Parseable,
 };
 
 use crate::constants::*;
@@ -262,15 +262,15 @@ impl netlink_packet_core::Nla for Nla {
                 buffer[s.len()] = 0;
             }
             Vfs(ref value) => value.emit(buffer),
-            Peer(value) => NativeEndian::write_u32(buffer, value),
+            Peer(value) => emit_u32(buffer, value).unwrap(),
             PendingConnections(ref values) => {
                 for (i, v) in values.iter().enumerate() {
-                    NativeEndian::write_u32(&mut buffer[i * 4..], *v);
+                    emit_u32(&mut buffer[i * 4..], *v).unwrap();
                 }
             }
             ReceiveQueueLength(v1, v2) => {
-                NativeEndian::write_u32(buffer, v1);
-                NativeEndian::write_u32(&mut buffer[4..], v2);
+                emit_u32(buffer, v1).unwrap();
+                emit_u32(&mut buffer[4..], v2).unwrap();
             }
             MemInfo(ref value) => value.emit(buffer),
             Shutdown(value) => buffer[0] = value,
@@ -314,7 +314,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
                     return Err(DecodeError::from("invalid UNIX_DIAG_ICONS"));
                 }
                 Self::PendingConnections(
-                    payload.chunks(4).map(NativeEndian::read_u32).collect(),
+                    payload.chunks(4).map(|b| parse_u32(b).unwrap()).collect(),
                 )
             }
             UNIX_DIAG_RQLEN => {
@@ -322,8 +322,8 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
                     return Err(DecodeError::from("invalid UNIX_DIAG_RQLEN"));
                 }
                 Self::ReceiveQueueLength(
-                    NativeEndian::read_u32(&payload[..4]),
-                    NativeEndian::read_u32(&payload[4..]),
+                    parse_u32(&payload[..4])?,
+                    parse_u32(&payload[4..])?,
                 )
             }
             UNIX_DIAG_MEMINFO => {
