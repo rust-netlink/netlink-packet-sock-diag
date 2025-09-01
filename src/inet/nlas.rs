@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use byteorder::{ByteOrder, NativeEndian};
-
 use netlink_packet_core::{
-    buffer, fields, getter, parse_string, parse_u32, parse_u8, setter,
-    DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer, Parseable,
+    buffer, emit_u32, fields, getter, parse_string, parse_u32, parse_u8,
+    setter, DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer,
+    Parseable,
 };
 
 use crate::constants::*;
@@ -301,9 +300,7 @@ impl netlink_packet_core::Nla for Nla {
             Tos(b) | Tc(b) | Shutdown(b) | Protocol(b) => buffer[0] = b,
             SkV6Only(value) => buffer[0] = value.into(),
             MemInfo(ref value) => value.emit(buffer),
-            Mark(value) | ClassId(value) => {
-                NativeEndian::write_u32(buffer, value)
-            }
+            Mark(value) | ClassId(value) => emit_u32(buffer, value).unwrap(),
             Other(ref attr) => attr.emit_value(buffer),
         }
     }
