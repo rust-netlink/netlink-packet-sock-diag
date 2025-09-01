@@ -48,6 +48,7 @@ pub struct InetRequest {
 
 bitflags! {
     /// Bitmask that defines a filter of TCP socket states
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct StateFlags: u32 {
         /// (server and client) represents an open connection,
         /// data received can be delivered to the user. The normal
@@ -96,6 +97,7 @@ bitflags! {
 bitflags! {
     /// This is a set of flags defining what kind of extended
     /// information to report.
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct ExtensionFlags: u8 {
         const MEMINFO = 1 << (INET_DIAG_MEMINFO - 1);
         const INFO = 1 << (INET_DIAG_INFO - 1);

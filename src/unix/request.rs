@@ -66,6 +66,7 @@ pub struct UnixRequest {
 
 bitflags! {
     /// Bitmask that defines a filter of UNIX socket states
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct StateFlags: u32 {
         const ESTABLISHED = 1 << TCP_ESTABLISHED;
         const LISTEN = 1 << TCP_LISTEN;
@@ -75,6 +76,7 @@ bitflags! {
 bitflags! {
     /// Bitmask that defines what kind of information to
     /// report. Supported values are the `UDIAG_SHOW_*` constants.
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct ShowFlags: u32 {
         const NAME = UDIAG_SHOW_NAME;
         const VFS = UDIAG_SHOW_VFS;
