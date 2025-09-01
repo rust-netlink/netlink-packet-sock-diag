@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_utils::traits::{Emitable, Parseable};
+use netlink_packet_core::{Emitable, Parseable};
 
 use crate::{
     constants::*,

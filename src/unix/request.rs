@@ -2,10 +2,8 @@
 
 use std::convert::TryFrom;
 
-use netlink_packet_utils::{
-    buffer,
-    traits::{Emitable, Parseable},
-    DecodeError,
+use netlink_packet_core::{
+    buffer, fields, getter, setter, DecodeError, Emitable, Parseable,
 };
 
 use crate::constants::*;

@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{self, DefaultNla, NlaBuffer},
-    parsers::{parse_string, parse_u32, parse_u8},
-    traits::{Emitable, Parseable},
-    DecodeError,
+use netlink_packet_core::{
+    buffer, fields, getter, parse_string, parse_u32, parse_u8, setter,
+    DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer, Parseable,
 };
 
 use crate::constants::*;
@@ -252,7 +248,7 @@ pub enum Nla {
     Other(DefaultNla),
 }
 
-impl nla::Nla for Nla {
+impl netlink_packet_core::Nla for Nla {
     fn value_len(&self) -> usize {
         use self::Nla::*;
         match *self {

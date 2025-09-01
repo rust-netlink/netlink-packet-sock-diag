@@ -2,12 +2,9 @@
 
 use std::convert::TryFrom;
 
-use anyhow::Context;
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    traits::{Emitable, Parseable},
-    DecodeError,
+use netlink_packet_core::{
+    buffer, fields, getter, setter, DecodeError, Emitable, ErrorContext,
+    NlaBuffer, NlasIterator, Parseable,
 };
 use smallvec::SmallVec;
 
