@@ -8,7 +8,7 @@ use netlink_packet_utils::{
     DecodeError,
 };
 
-use crate::{inet, unix, SockDiagBuffer, SOCK_DIAG_BY_FAMILY};
+use crate::{inet, netlink, unix, SockDiagBuffer, SOCK_DIAG_BY_FAMILY};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SockDiagMessage {
@@ -16,6 +16,8 @@ pub enum SockDiagMessage {
     InetResponse(Box<inet::InetResponse>),
     UnixRequest(unix::UnixRequest),
     UnixResponse(Box<unix::UnixResponse>),
+    NetlinkRequest(netlink::NetlinkRequest),
+    NetlinkResponse(Box<netlink::NetlinkResponse>),
 }
 
 impl SockDiagMessage {
@@ -26,12 +28,21 @@ impl SockDiagMessage {
     pub fn is_inet_response(&self) -> bool {
         matches!(self, SockDiagMessage::InetResponse(_))
     }
+
     pub fn is_unix_request(&self) -> bool {
         matches!(self, SockDiagMessage::UnixRequest(_))
     }
 
     pub fn is_unix_response(&self) -> bool {
         matches!(self, SockDiagMessage::UnixResponse(_))
+    }
+
+    pub fn is_netlink_request(&self) -> bool {
+        matches!(self, SockDiagMessage::NetlinkRequest(_))
+    }
+
+    pub fn is_netlink_response(&self) -> bool {
+        matches!(self, SockDiagMessage::NetlinkResponse(_))
     }
 
     pub fn message_type(&self) -> u16 {
@@ -48,6 +59,8 @@ impl Emitable for SockDiagMessage {
             InetResponse(ref msg) => msg.buffer_len(),
             UnixRequest(ref msg) => msg.buffer_len(),
             UnixResponse(ref msg) => msg.buffer_len(),
+            NetlinkRequest(ref msg) => msg.buffer_len(),
+            NetlinkResponse(ref msg) => msg.buffer_len(),
         }
     }
 
@@ -59,6 +72,8 @@ impl Emitable for SockDiagMessage {
             InetResponse(ref msg) => msg.emit(buffer),
             UnixRequest(ref msg) => msg.emit(buffer),
             UnixResponse(ref msg) => msg.emit(buffer),
+            NetlinkRequest(ref msg) => msg.emit(buffer),
+            NetlinkResponse(ref msg) => msg.emit(buffer),
         }
     }
 }

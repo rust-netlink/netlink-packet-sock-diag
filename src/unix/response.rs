@@ -28,7 +28,7 @@ buffer!(UnixResponseBuffer(UNIX_RESPONSE_HEADER_LEN) {
     payload: (slice, UNIX_RESPONSE_HEADER_LEN..),
 });
 
-/// The response to a query for IPv4 or IPv6 sockets
+/// The response to a query for unix sockets.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UnixResponseHeader {
     /// One of `SOCK_PACKET`, `SOCK_STREAM`, or `SOCK_SEQPACKET`

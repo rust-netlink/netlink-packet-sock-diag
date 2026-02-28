@@ -14,5 +14,6 @@ pub mod buffer;
 pub mod constants;
 pub mod inet;
 pub mod message;
+pub mod netlink;
 pub mod unix;
 pub use self::{buffer::*, constants::*, message::*};
