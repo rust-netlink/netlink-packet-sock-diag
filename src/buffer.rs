@@ -6,7 +6,7 @@ use netlink_packet_utils::{
     DecodeError,
 };
 
-use crate::{constants::*, inet, unix, SockDiagMessage};
+use crate::{constants::*, inet, netlink, unix, SockDiagMessage};
 
 const BUF_MIN_LEN: usize = 2;
 
@@ -89,6 +89,15 @@ impl<'a, T: AsRef<[u8]>> ParseableParametrized<SockDiagBuffer<&'a T>, u16>
                     .context(err)?;
                 UnixResponse(Box::new(
                     unix::UnixResponse::parse(&buf).context(err)?,
+                ))
+            }
+            (SOCK_DIAG_BY_FAMILY, AF_NETLINK) => {
+                let err = "invalid AF_NETLINK response";
+                let buf =
+                    netlink::NetlinkResponseBuffer::new_checked(buf.inner())
+                        .context(err)?;
+                NetlinkResponse(Box::new(
+                    netlink::NetlinkResponse::parse(&buf).context(err)?,
                 ))
             }
             (SOCK_DIAG_BY_FAMILY, af) => {

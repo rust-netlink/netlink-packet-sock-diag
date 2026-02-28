@@ -211,6 +211,138 @@ pub const UNIX_DIAG_RQLEN: u16 = 4;
 pub const UNIX_DIAG_MEMINFO: u16 = 5;
 pub const UNIX_DIAG_SHUTDOWN: u16 = 6;
 
+pub const NDIAG_PROTO_ALL: u16 = 255;
+
+/// Show memory info of a socket.
+pub const NDIAG_SHOW_MEMINFO: u32 = 1;
+/// Show groups of a netlink socket.
+pub const NDIAG_SHOW_GROUPS: u32 = 2;
+/// Show ring configuration (deprecated since 4.6).
+pub const NDIAG_SHOW_RING_CFG: u32 = 4;
+/// Show flags of a netlink socket.
+pub const NDIAG_SHOW_FLAGS: u32 = 8;
+
+pub const NETLINK_DIAG_MEMINFO: u16 = 0;
+pub const NETLINK_DIAG_GROUPS: u16 = 1;
+pub const NETLINK_DIAG_RX_RING: u16 = 2;
+pub const NETLINK_DIAG_TX_RING: u16 = 3;
+pub const NETLINK_DIAG_FLAGS: u16 = 4;
+
+pub const NETLINK_UNCONNECTED: u8 = 0;
+pub const NETLINK_CONNECTED: u8 = 1;
+
+pub const NDIAG_FLAG_CB_RUNNING: u32 = 1;
+pub const NDIAG_FLAG_PKTINFO: u32 = 2;
+pub const NDIAG_FLAG_BROADCAST_ERROR: u32 = 4;
+pub const NDIAG_FLAG_NO_ENOBUFS: u32 = 8;
+pub const NDIAG_FLAG_LISTEN_ALL_NSID: u32 = 16;
+pub const NDIAG_FLAG_CAP_ACK: u32 = 32;
+
+/// Receives routing and link updates and may be used to modify the routing
+/// tables (both IPv4 and IPv6), IP addresses, link parameters, neighbor setups,
+/// queueing disciplines, traffic classes and packet  classifiers  (see
+/// rtnetlink(7)).
+pub const NETLINK_ROUTE: u8 = libc::NETLINK_ROUTE as u8;
+pub const NETLINK_UNUSED: u8 = libc::NETLINK_UNUSED as u8;
+/// Reserved for user-mode socket protocols.
+pub const NETLINK_USERSOCK: u8 = libc::NETLINK_USERSOCK as u8;
+/// Transport  IPv4  packets  from  netfilter  to  user  space.  Used by
+/// ip_queue kernel module. After a long period of being declared obsolete (in
+/// favor of the more advanced nfnetlink_queue feature), it was  removed in
+/// Linux 3.5.
+pub const NETLINK_FIREWALL: u8 = libc::NETLINK_FIREWALL as u8;
+/// Query information about sockets of various protocol families from the kernel
+/// (see sock_diag(7)).
+pub const NETLINK_SOCK_DIAG: u8 = libc::NETLINK_SOCK_DIAG as u8;
+/// Netfilter/iptables ULOG.
+pub const NETLINK_NFLOG: u8 = libc::NETLINK_NFLOG as u8;
+/// IPsec.
+pub const NETLINK_XFRM: u8 = libc::NETLINK_XFRM as u8;
+/// SELinux event notifications.
+pub const NETLINK_SELINUX: u8 = libc::NETLINK_SELINUX as u8;
+/// Open-iSCSI.
+pub const NETLINK_ISCSI: u8 = libc::NETLINK_ISCSI as u8;
+/// Auditing.
+pub const NETLINK_AUDIT: u8 = libc::NETLINK_AUDIT as u8;
+/// Access to FIB lookup from user space.
+pub const NETLINK_FIB_LOOKUP: u8 = libc::NETLINK_FIB_LOOKUP as u8;
+/// Kernel connector. See `Documentation/connector/*` in the Linux kernel source
+/// tree for further information.
+pub const NETLINK_CONNECTOR: u8 = libc::NETLINK_CONNECTOR as u8;
+/// Netfilter subsystem.
+pub const NETLINK_NETFILTER: u8 = libc::NETLINK_NETFILTER as u8;
+/// Transport IPv6 packets from netfilter to user space.  Used by ip6_queue
+/// kernel module.
+pub const NETLINK_IP6_FW: u8 = libc::NETLINK_IP6_FW as u8;
+/// DECnet routing messages.
+pub const NETLINK_DNRTMSG: u8 = libc::NETLINK_DNRTMSG as u8;
+/// Kernel messages to user space.
+pub const NETLINK_KOBJECT_UEVENT: u8 = libc::NETLINK_KOBJECT_UEVENT as u8;
+///  Generic netlink family for simplified netlink usage.
+pub const NETLINK_GENERIC: u8 = libc::NETLINK_GENERIC as u8;
+/// SCSI Transports.
+pub const NETLINK_SCSITRANSPORT: u8 = libc::NETLINK_SCSITRANSPORT as u8;
+pub const NETLINK_ECRYPTFS: u8 = libc::NETLINK_ECRYPTFS as u8;
+/// Infiniband RDMA.
+pub const NETLINK_RDMA: u8 = libc::NETLINK_RDMA as u8;
+/// Netlink interface to request information about ciphers registered with the
+/// kernel crypto API as well as allow configuration of the kernel crypto API.
+pub const NETLINK_CRYPTO: u8 = libc::NETLINK_CRYPTO as u8;
+
+pub const RTMGRP_LINK: u32 = libc::RTMGRP_LINK as u32;
+pub const RTMGRP_NOTIFY: u32 = libc::RTMGRP_NOTIFY as u32;
+pub const RTMGRP_NEIGH: u32 = libc::RTMGRP_NEIGH as u32;
+pub const RTMGRP_TC: u32 = libc::RTMGRP_TC as u32;
+pub const RTMGRP_IPV4_IFADDR: u32 = libc::RTMGRP_IPV4_IFADDR as u32;
+pub const RTMGRP_IPV4_MROUTE: u32 = libc::RTMGRP_IPV4_MROUTE as u32;
+pub const RTMGRP_IPV4_ROUTE: u32 = libc::RTMGRP_IPV4_ROUTE as u32;
+pub const RTMGRP_IPV4_RULE: u32 = libc::RTMGRP_IPV4_RULE as u32;
+pub const RTMGRP_IPV6_IFADDR: u32 = libc::RTMGRP_IPV6_IFADDR as u32;
+pub const RTMGRP_IPV6_MROUTE: u32 = libc::RTMGRP_IPV6_MROUTE as u32;
+pub const RTMGRP_IPV6_ROUTE: u32 = libc::RTMGRP_IPV6_ROUTE as u32;
+pub const RTMGRP_IPV6_IFINFO: u32 = libc::RTMGRP_IPV6_IFINFO as u32;
+pub const RTMGRP_DECNET_IFADDR: u32 = libc::RTMGRP_DECnet_IFADDR as u32;
+pub const RTMGRP_DECNET_ROUTE: u32 = libc::RTMGRP_DECnet_ROUTE as u32;
+pub const RTMGRP_IPV6_PREFIX: u32 = libc::RTMGRP_IPV6_PREFIX as u32;
+
+// pub const RTNLGRP_NONE: u32 = libc::RTNLGRP_NONE as u32;
+pub const RTNLGRP_LINK: u32 = libc::RTNLGRP_LINK as u32;
+pub const RTNLGRP_NOTIFY: u32 = libc::RTNLGRP_NOTIFY as u32;
+pub const RTNLGRP_NEIGH: u32 = libc::RTNLGRP_NEIGH as u32;
+pub const RTNLGRP_TC: u32 = libc::RTNLGRP_TC as u32;
+pub const RTNLGRP_IPV4_IFADDR: u32 = libc::RTNLGRP_IPV4_IFADDR as u32;
+pub const RTNLGRP_IPV4_MROUTE: u32 = libc::RTNLGRP_IPV4_MROUTE as u32;
+pub const RTNLGRP_IPV4_ROUTE: u32 = libc::RTNLGRP_IPV4_ROUTE as u32;
+pub const RTNLGRP_IPV4_RULE: u32 = libc::RTNLGRP_IPV4_RULE as u32;
+pub const RTNLGRP_IPV6_IFADDR: u32 = libc::RTNLGRP_IPV6_IFADDR as u32;
+pub const RTNLGRP_IPV6_MROUTE: u32 = libc::RTNLGRP_IPV6_MROUTE as u32;
+pub const RTNLGRP_IPV6_ROUTE: u32 = libc::RTNLGRP_IPV6_ROUTE as u32;
+pub const RTNLGRP_IPV6_IFINFO: u32 = libc::RTNLGRP_IPV6_IFINFO as u32;
+pub const RTNLGRP_DECNET_IFADDR: u32 = libc::RTNLGRP_DECnet_IFADDR as u32;
+// pub const RTNLGRP_NOP2: u32 = libc::RTNLGRP_NOP2 as u32;
+pub const RTNLGRP_DECNET_ROUTE: u32 = libc::RTNLGRP_DECnet_ROUTE as u32;
+pub const RTNLGRP_DECNET_RULE: u32 = libc::RTNLGRP_DECnet_RULE as u32;
+// pub const RTNLGRP_NOP4: u32 = libc::RTNLGRP_NOP4 as u32;
+pub const RTNLGRP_IPV6_PREFIX: u32 = libc::RTNLGRP_IPV6_PREFIX as u32;
+pub const RTNLGRP_IPV6_RULE: u32 = libc::RTNLGRP_IPV6_RULE as u32;
+pub const RTNLGRP_ND_USEROPT: u32 = libc::RTNLGRP_ND_USEROPT as u32;
+pub const RTNLGRP_PHONET_IFADDR: u32 = libc::RTNLGRP_PHONET_IFADDR as u32;
+pub const RTNLGRP_PHONET_ROUTE: u32 = libc::RTNLGRP_PHONET_ROUTE as u32;
+pub const RTNLGRP_DCB: u32 = libc::RTNLGRP_DCB as u32;
+pub const RTNLGRP_IPV4_NETCONF: u32 = libc::RTNLGRP_IPV4_NETCONF as u32;
+pub const RTNLGRP_IPV6_NETCONF: u32 = libc::RTNLGRP_IPV6_NETCONF as u32;
+pub const RTNLGRP_MDB: u32 = libc::RTNLGRP_MDB as u32;
+pub const RTNLGRP_MPLS_ROUTE: u32 = libc::RTNLGRP_MPLS_ROUTE as u32;
+pub const RTNLGRP_NSID: u32 = libc::RTNLGRP_NSID as u32;
+pub const RTNLGRP_MPLS_NETCONF: u32 = libc::RTNLGRP_MPLS_NETCONF as u32;
+pub const RTNLGRP_IPV4_MROUTE_R: u32 = libc::RTNLGRP_IPV4_MROUTE_R as u32;
+pub const RTNLGRP_IPV6_MROUTE_R: u32 = libc::RTNLGRP_IPV6_MROUTE_R as u32;
+pub const RTNLGRP_NEXTHOP: u32 = libc::RTNLGRP_NEXTHOP as u32;
+pub const RTNLGRP_BRVLAN: u32 = libc::RTNLGRP_BRVLAN as u32;
+pub const RTNLGRP_MCTP_IFADDR: u32 = libc::RTNLGRP_MCTP_IFADDR as u32;
+pub const RTNLGRP_TUNNEL: u32 = libc::RTNLGRP_TUNNEL as u32;
+pub const RTNLGRP_STATS: u32 = libc::RTNLGRP_STATS as u32;
+
 /// Provides sequenced, reliable, two-way, connection-based byte
 /// streams. An out-of-band data transmission mechanism may be
 /// supported.
