@@ -239,7 +239,7 @@ impl netlink_packet_core::Nla for Nla {
         use self::Nla::*;
         match *self {
             // +1 because we need to append a null byte
-            Name(ref s) => s.as_bytes().len() + 1,
+            Name(ref s) => s.len() + 1,
             Vfs(_) => VFS_LEN,
             Peer(_) => 4,
             PendingConnections(ref v) => 4 * v.len(),
@@ -306,7 +306,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
                 parse_u32(payload).context("invalid UNIX_DIAG_PEER value")?,
             ),
             UNIX_DIAG_ICONS => {
-                if payload.len() % 4 != 0 {
+                if !payload.len().is_multiple_of(4) {
                     return Err(DecodeError::from("invalid UNIX_DIAG_ICONS"));
                 }
                 Self::PendingConnections(
