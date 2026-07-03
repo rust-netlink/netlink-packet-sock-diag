@@ -85,7 +85,8 @@ buffer!(MemInfoBuffer(MEM_INFO_LEN) {
 /// documentation with a huge grain of salt. Please report any error
 /// you may notice. Here are the references I used:
 ///
-/// - [a short introduction to `sk_buff`, the struct used in the kernel to store packets](https://wiki.linuxfoundation.org/networking/sk_buff)
+/// - [a short introduction to `sk_buff`, the struct used in the kernel to store
+///   packets](https://wiki.linuxfoundation.org/networking/sk_buff)
 /// - [vger.kernel.org has a lot of documentation about the low level network stack APIs](http://vger.kernel.org/~davem/skb_data.html)
 /// - [thorough high level explanation of buffering in the network stack](https://www.coverfire.com/articles/queueing-in-the-linux-network-stack/)
 /// - [understanding the backlog queue](http://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html)
@@ -256,7 +257,7 @@ impl netlink_packet_core::Nla for Nla {
             #[cfg(not(feature = "rich_nlas"))]
             TcpInfo(ref bytes) => bytes.len(),
             // +1 because we need to append a null byte
-            Congestion(ref s) => s.as_bytes().len() + 1,
+            Congestion(ref s) => s.len() + 1,
             Tos(_) | Tc(_) | Shutdown(_) | Protocol(_) | SkV6Only(_) => 1,
             MemInfo(_) => MEM_INFO_LEN,
             Mark(_) | ClassId(_) => 4,
@@ -531,7 +532,8 @@ pub struct TcpInfo {
     pub rcv_rtt: u32,
     pub rcv_space: u32,
 
-    /// Number of segments that have been retransmitted during lifetime of the socket
+    /// Number of segments that have been retransmitted during lifetime of the
+    /// socket
     pub total_retrans: u32,
 
     pub pacing_rate: u64,
