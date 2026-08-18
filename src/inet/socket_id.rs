@@ -1,27 +1,35 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-    convert::{TryFrom, TryInto},
+    mem::size_of,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use netlink_packet_core::{
-    buffer, emit_u16_be, fields, getter, parse_u16_be, setter, DecodeError,
-    Emitable, ParseableParametrized,
-};
+use netlink_packet_core::{DecodeError, Emitable, ParseableParametrized};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
-pub const SOCKET_ID_LEN: usize = 48;
-
-buffer!(SocketIdBuffer(SOCKET_ID_LEN) {
-    source_port: (slice, 0..2),
-    destination_port: (slice, 2..4),
-    source_address: (slice, 4..20),
-    destination_address: (slice, 20..36),
-    interface_id: (u32, 36..40),
-    cookie: (slice, 40..48),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct SocketIdBuffer {
+    source_port: u16,
+    destination_port: u16,
+    source_address: [u8; 16],
+    destination_address: [u8; 16],
+    interface_id: u32,
+    cookie: [u8; 8],
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SocketId {
@@ -62,31 +70,36 @@ impl SocketId {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8>
-    for SocketId
-{
-    fn parse_with_param(
-        buf: &SocketIdBuffer<&'a T>,
-        af: u8,
-    ) -> Result<Self, DecodeError> {
+impl ParseableParametrized<[u8], u8> for SocketId {
+    fn parse_with_param(payload: &[u8], af: u8) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            SocketIdBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<SocketIdBuffer>(),
+                )
+            })?;
+
         let (source_address, destination_address) = match af {
             AF_INET => {
-                let s = &buf.source_address()[..4];
-                let source = IpAddr::V4(Ipv4Addr::new(s[0], s[1], s[2], s[3]));
-
-                let s = &buf.destination_address()[..4];
-                let destination =
-                    IpAddr::V4(Ipv4Addr::new(s[0], s[1], s[2], s[3]));
-
+                let source = IpAddr::V4(Ipv4Addr::new(
+                    raw.source_address[0],
+                    raw.source_address[1],
+                    raw.source_address[2],
+                    raw.source_address[3],
+                ));
+                let destination = IpAddr::V4(Ipv4Addr::new(
+                    raw.destination_address[0],
+                    raw.destination_address[1],
+                    raw.destination_address[2],
+                    raw.destination_address[3],
+                ));
                 (source, destination)
             }
             AF_INET6 => {
-                let bytes: [u8; 16] = buf.source_address().try_into().unwrap();
-                let source = IpAddr::V6(Ipv6Addr::from(bytes));
-
-                let bytes: [u8; 16] =
-                    buf.destination_address().try_into().unwrap();
-                let destination = IpAddr::V6(Ipv6Addr::from(bytes));
+                let source = IpAddr::V6(Ipv6Addr::from(raw.source_address));
+                let destination =
+                    IpAddr::V6(Ipv6Addr::from(raw.destination_address));
                 (source, destination)
             }
             _ => {
@@ -97,55 +110,50 @@ impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<SocketIdBuffer<&'a T>, u8>
         };
 
         Ok(Self {
-            source_port: parse_u16_be(buf.source_port())?,
-            destination_port: parse_u16_be(buf.destination_port())?,
+            source_port: u16::from_be(raw.source_port),
+            destination_port: u16::from_be(raw.destination_port),
             source_address,
             destination_address,
-            interface_id: buf.interface_id(),
-            // Unwrapping is safe because SocketIdBuffer::cookie()
-            // returns a slice of exactly 8 bytes.
-            cookie: TryFrom::try_from(buf.cookie()).unwrap(),
+            interface_id: raw.interface_id,
+            cookie: raw.cookie,
         })
+    }
+}
+
+impl From<&SocketId> for SocketIdBuffer {
+    fn from(value: &SocketId) -> Self {
+        let mut source_address = [0u8; 16];
+        match value.source_address {
+            IpAddr::V4(ip) => source_address[..4].copy_from_slice(&ip.octets()),
+            IpAddr::V6(ip) => source_address.copy_from_slice(&ip.octets()),
+        }
+
+        let mut destination_address = [0u8; 16];
+        match value.destination_address {
+            IpAddr::V4(ip) => {
+                destination_address[..4].copy_from_slice(&ip.octets())
+            }
+            IpAddr::V6(ip) => destination_address.copy_from_slice(&ip.octets()),
+        }
+
+        Self {
+            source_port: value.source_port.to_be(),
+            destination_port: value.destination_port.to_be(),
+            source_address,
+            destination_address,
+            interface_id: value.interface_id,
+            cookie: value.cookie,
+        }
     }
 }
 
 impl Emitable for SocketId {
     fn buffer_len(&self) -> usize {
-        SOCKET_ID_LEN
+        size_of::<SocketIdBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = SocketIdBuffer::new(buffer);
-
-        emit_u16_be(buffer.source_port_mut(), self.source_port).unwrap();
-        emit_u16_be(buffer.destination_port_mut(), self.destination_port)
-            .unwrap();
-
-        let mut address_buf: [u8; 16] = [0; 16];
-        match self.source_address {
-            IpAddr::V4(ip) => {
-                address_buf[0..4].copy_from_slice(&ip.octets()[..])
-            }
-            IpAddr::V6(ip) => address_buf.copy_from_slice(&ip.octets()[..]),
-        }
-
-        buffer
-            .source_address_mut()
-            .copy_from_slice(&address_buf[..]);
-
-        address_buf = [0; 16];
-        match self.destination_address {
-            IpAddr::V4(ip) => {
-                address_buf[0..4].copy_from_slice(&ip.octets()[..])
-            }
-            IpAddr::V6(ip) => address_buf.copy_from_slice(&ip.octets()[..]),
-        }
-
-        buffer
-            .destination_address_mut()
-            .copy_from_slice(&address_buf[..]);
-
-        buffer.set_interface_id(self.interface_id);
-        buffer.cookie_mut().copy_from_slice(&self.cookie[..]);
+        let raw = SocketIdBuffer::from(self);
+        buffer.copy_from_slice(raw.as_bytes());
     }
 }

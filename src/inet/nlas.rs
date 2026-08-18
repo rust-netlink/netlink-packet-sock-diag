@@ -1,21 +1,33 @@
 // SPDX-License-Identifier: MIT
 
+use std::mem::size_of;
+
 use netlink_packet_core::{
-    buffer, emit_u32, fields, getter, parse_string, parse_u32, parse_u8,
-    setter, DecodeError, DefaultNla, Emitable, ErrorContext, NlaBuffer,
-    Parseable,
+    emit_u32, parse_string, parse_u32, parse_u8, DecodeError, DefaultNla,
+    Emitable, ErrorContext, NlaBuffer, Parseable,
 };
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
-pub const LEGACY_MEM_INFO_LEN: usize = 16;
-
-buffer!(LegacyMemInfoBuffer(LEGACY_MEM_INFO_LEN) {
-    receive_queue: (u32, 0..4),
-    bottom_send_queue: (u32, 4..8),
-    cache: (u32, 8..12),
-    send_queue: (u32, 12..16)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct LegacyMemInfoBuffer {
+    receive_queue: u32,
+    bottom_send_queue: u32,
+    cache: u32,
+    send_queue: u32,
+}
 
 /// In recent Linux kernels, this NLA is not used anymore to report
 /// AF_INET and AF_INET6 sockets memory information. See [`MemInfo`]
@@ -32,46 +44,71 @@ pub struct LegacyMemInfo {
     pub send_queue: u32,
 }
 
-impl<T: AsRef<[u8]>> Parseable<LegacyMemInfoBuffer<T>> for LegacyMemInfo {
-    fn parse(buf: &LegacyMemInfoBuffer<T>) -> Result<Self, DecodeError> {
+impl LegacyMemInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            LegacyMemInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<LegacyMemInfoBuffer>(),
+                )
+            })?;
         Ok(Self {
-            receive_queue: buf.receive_queue(),
-            bottom_send_queue: buf.bottom_send_queue(),
-            cache: buf.cache(),
-            send_queue: buf.send_queue(),
+            receive_queue: raw.receive_queue,
+            bottom_send_queue: raw.bottom_send_queue,
+            cache: raw.cache,
+            send_queue: raw.send_queue,
         })
+    }
+}
+
+impl From<&LegacyMemInfo> for LegacyMemInfoBuffer {
+    fn from(value: &LegacyMemInfo) -> Self {
+        Self {
+            receive_queue: value.receive_queue,
+            bottom_send_queue: value.bottom_send_queue,
+            cache: value.cache,
+            send_queue: value.send_queue,
+        }
     }
 }
 
 impl Emitable for LegacyMemInfo {
     fn buffer_len(&self) -> usize {
-        LEGACY_MEM_INFO_LEN
+        size_of::<LegacyMemInfoBuffer>()
     }
 
-    fn emit(&self, buf: &mut [u8]) {
-        let mut buf = LegacyMemInfoBuffer::new(buf);
-        buf.set_receive_queue(self.receive_queue);
-        buf.set_bottom_send_queue(self.bottom_send_queue);
-        buf.set_cache(self.cache);
-        buf.set_send_queue(self.send_queue);
+    fn emit(&self, buffer: &mut [u8]) {
+        let raw = LegacyMemInfoBuffer::from(self);
+        buffer.copy_from_slice(raw.as_bytes());
     }
 }
 
-pub const MEM_INFO_LEN: usize = 36;
-
 // FIXME: the last 2 fields are not present on old linux kernels. We
-// should support optional fields in the `buffer!` macro.
-buffer!(MemInfoBuffer(MEM_INFO_LEN) {
-    receive_queue: (u32, 0..4),
-    receive_queue_max: (u32, 4..8),
-    bottom_send_queues: (u32, 8..12),
-    send_queue_max: (u32, 12..16),
-    cache: (u32, 16..20),
-    send_queue: (u32, 20..24),
-    options: (u32, 24..28),
-    backlog_queue_length: (u32, 28..32),
-    drops: (u32, 32..36),
-});
+// should support optional fields in the buffer parser.
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct MemInfoBuffer {
+    receive_queue: u32,
+    receive_queue_max: u32,
+    bottom_send_queues: u32,
+    send_queue_max: u32,
+    cache: u32,
+    send_queue: u32,
+    options: u32,
+    backlog_queue_length: u32,
+    drops: u32,
+}
 
 /// Socket memory information. To understand this information, one
 /// must understand how the memory allocated for the send and receive
@@ -178,38 +215,53 @@ pub struct MemInfo {
     pub drops: u32,
 }
 
-impl<T: AsRef<[u8]>> Parseable<MemInfoBuffer<T>> for MemInfo {
-    fn parse(buf: &MemInfoBuffer<T>) -> Result<Self, DecodeError> {
+impl MemInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            MemInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<MemInfoBuffer>(),
+                )
+            })?;
         Ok(Self {
-            receive_queue: buf.receive_queue(),
-            receive_queue_max: buf.receive_queue_max(),
-            bottom_send_queues: buf.bottom_send_queues(),
-            send_queue_max: buf.send_queue_max(),
-            cache: buf.cache(),
-            send_queue: buf.send_queue(),
-            options: buf.options(),
-            backlog_queue_length: buf.backlog_queue_length(),
-            drops: buf.drops(),
+            receive_queue: raw.receive_queue,
+            receive_queue_max: raw.receive_queue_max,
+            bottom_send_queues: raw.bottom_send_queues,
+            send_queue_max: raw.send_queue_max,
+            cache: raw.cache,
+            send_queue: raw.send_queue,
+            options: raw.options,
+            backlog_queue_length: raw.backlog_queue_length,
+            drops: raw.drops,
         })
+    }
+}
+
+impl From<&MemInfo> for MemInfoBuffer {
+    fn from(value: &MemInfo) -> Self {
+        Self {
+            receive_queue: value.receive_queue,
+            receive_queue_max: value.receive_queue_max,
+            bottom_send_queues: value.bottom_send_queues,
+            send_queue_max: value.send_queue_max,
+            cache: value.cache,
+            send_queue: value.send_queue,
+            options: value.options,
+            backlog_queue_length: value.backlog_queue_length,
+            drops: value.drops,
+        }
     }
 }
 
 impl Emitable for MemInfo {
     fn buffer_len(&self) -> usize {
-        MEM_INFO_LEN
+        size_of::<MemInfoBuffer>()
     }
 
-    fn emit(&self, buf: &mut [u8]) {
-        let mut buf = MemInfoBuffer::new(buf);
-        buf.set_receive_queue(self.receive_queue);
-        buf.set_receive_queue_max(self.receive_queue_max);
-        buf.set_bottom_send_queues(self.bottom_send_queues);
-        buf.set_send_queue_max(self.send_queue_max);
-        buf.set_cache(self.cache);
-        buf.set_send_queue(self.send_queue);
-        buf.set_options(self.options);
-        buf.set_backlog_queue_length(self.backlog_queue_length);
-        buf.set_drops(self.drops);
+    fn emit(&self, buffer: &mut [u8]) {
+        let raw = MemInfoBuffer::from(self);
+        buffer.copy_from_slice(raw.as_bytes());
     }
 }
 
@@ -251,15 +303,15 @@ impl netlink_packet_core::Nla for Nla {
     fn value_len(&self) -> usize {
         use self::Nla::*;
         match *self {
-            LegacyMemInfo(_) => LEGACY_MEM_INFO_LEN,
+            LegacyMemInfo(_) => size_of::<LegacyMemInfoBuffer>(),
             #[cfg(feature = "rich_nlas")]
-            TcpInfo(_) => TCP_INFO_LEN,
+            TcpInfo(_) => size_of::<TcpInfoBuffer>(),
             #[cfg(not(feature = "rich_nlas"))]
             TcpInfo(ref bytes) => bytes.len(),
             // +1 because we need to append a null byte
             Congestion(ref s) => s.len() + 1,
             Tos(_) | Tc(_) | Shutdown(_) | Protocol(_) | SkV6Only(_) => 1,
-            MemInfo(_) => MEM_INFO_LEN,
+            MemInfo(_) => size_of::<MemInfoBuffer>(),
             Mark(_) | ClassId(_) => 4,
             Other(ref attr) => attr.value_len(),
         }
@@ -312,15 +364,12 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
         Ok(match buf.kind() {
             INET_DIAG_MEMINFO => {
                 let err = "invalid INET_DIAG_MEMINFO value";
-                let buf =
-                    LegacyMemInfoBuffer::new_checked(payload).context(err)?;
-                Self::LegacyMemInfo(LegacyMemInfo::parse(&buf).context(err)?)
+                Self::LegacyMemInfo(LegacyMemInfo::parse(payload).context(err)?)
             }
             #[cfg(feature = "rich_nlas")]
             INET_DIAG_INFO => {
                 let err = "invalid INET_DIAG_INFO value";
-                let buf = TcpInfoBuffer::new_checked(payload).context(err)?;
-                Self::TcpInfo(TcpInfo::parse(&buf).context(err)?)
+                Self::TcpInfo(TcpInfo::parse(payload).context(err)?)
             }
             #[cfg(not(feature = "rich_nlas"))]
             INET_DIAG_INFO => Self::TcpInfo(payload.to_vec()),
@@ -336,8 +385,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
             ),
             INET_DIAG_SKMEMINFO => {
                 let err = "invalid INET_DIAG_SKMEMINFO value";
-                let buf = MemInfoBuffer::new_checked(payload).context(err)?;
-                Self::MemInfo(MemInfo::parse(&buf).context(err)?)
+                Self::MemInfo(MemInfo::parse(payload).context(err)?)
             }
             INET_DIAG_SHUTDOWN => Self::Shutdown(
                 parse_u8(payload)
@@ -368,93 +416,103 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
 }
 
 #[cfg(feature = "rich_nlas")]
-pub const TCP_INFO_LEN: usize = 232;
-
-#[cfg(feature = "rich_nlas")]
-buffer!(TcpInfoBuffer(TCP_INFO_LEN) {
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct TcpInfoBuffer {
     // State of the TCP connection. This should be set to one of the
     // `TCP_*` constants: `TCP_ESTABLISHED`, `TCP_SYN_SENT`, etc. This
     // attribute is known as `tcpi_state` in the kernel.
-    state: (u8, 0),
+    state: u8,
     // State of congestion avoidance. Sender's congestion state
     // indicating normal or abnormal situations in the last round of
     // packets sent. The state is driven by the ACK information and
     // timer events. This should be set to one of the `TCP_CA_*`
     // constants. This attribute is known as `tcpi_ca_state` in the
     // kernel.
-    congestion_avoidance_state: (u8, 1),
+    congestion_avoidance_state: u8,
     // Number of retranmissions on timeout invoked. This attribute is
     // known as `tcpi_retransmits` in the kernel.
-    retransmits: (u8, 2),
+    retransmits: u8,
     // Number of window or keep alive probes sent. This attribute is
     // known as `tcpi_probes`.
-    probes: (u8, 3),
+    probes: u8,
     // Number of times the retransmission backoff timer invoked
-    backoff: (u8, 4),
-    options: (u8, 5),
-    wscale: (u8, 6),
-    delivery_rate_app_limited: (u8, 7),
+    backoff: u8,
+    options: u8,
+    wscale: u8,
+    delivery_rate_app_limited: u8,
 
-    rto: (u32, 8..12),
-    ato: (u32, 12..16),
-    snd_mss: (u32, 16..20),
-    rcv_mss: (u32, 20..24),
+    rto: u32,
+    ato: u32,
+    snd_mss: u32,
+    rcv_mss: u32,
 
-    unacked: (u32, 24..28),
-    sacked: (u32, 28..32),
-    lost: (u32, 32..36),
-    retrans: (u32, 36..40),
-    fackets: (u32, 40..44),
+    unacked: u32,
+    sacked: u32,
+    lost: u32,
+    retrans: u32,
+    fackets: u32,
 
     // Times
-    last_data_sent: (u32, 44..48),
-    last_ack_sent: (u32, 48..52),
-    last_data_recv: (u32, 52..56),
-    last_ack_recv: (u32, 56..60),
+    last_data_sent: u32,
+    last_ack_sent: u32,
+    last_data_recv: u32,
+    last_ack_recv: u32,
 
     // Metrics
-    pmtu: (u32, 60..64),
-    rcv_ssthresh: (u32, 64..68),
-    rtt: (u32, 68..72),
-    rttvar: (u32, 72..76),
-    snd_ssthresh: (u32, 76..80),
-    snd_cwnd: (u32, 80..84),
-    advmss: (u32, 84..88),
-    reordering: (u32, 88..92),
+    pmtu: u32,
+    rcv_ssthresh: u32,
+    rtt: u32,
+    rttvar: u32,
+    snd_ssthresh: u32,
+    snd_cwnd: u32,
+    advmss: u32,
+    reordering: u32,
 
-    rcv_rtt: (u32, 92..96),
-    rcv_space: (u32, 96..100),
+    rcv_rtt: u32,
+    rcv_space: u32,
 
-    total_retrans: (u32, 100..104),
+    total_retrans: u32,
 
-    pacing_rate: (u64, 104..112),
-    max_pacing_rate: (u64, 112..120),
-    bytes_acked: (u64, 120..128),       // RFC4898 tcpEStatsAppHCThruOctetsAcked
-    bytes_received: (u64, 128..136),    // RFC4898 tcpEStatsAppHCThruOctetsReceived
-    segs_out: (u32, 136..140),          // RFC4898 tcpEStatsPerfSegsOut
-    segs_in: (u32, 140..144),           // RFC4898 tcpEStatsPerfSegsIn
+    pacing_rate: u64,
+    max_pacing_rate: u64,
+    bytes_acked: u64,    // RFC4898 tcpEStatsAppHCThruOctetsAcked
+    bytes_received: u64, // RFC4898 tcpEStatsAppHCThruOctetsReceived
+    segs_out: u32,       // RFC4898 tcpEStatsPerfSegsOut
+    segs_in: u32,        // RFC4898 tcpEStatsPerfSegsIn
 
-    notsent_bytes: (u32, 144..148),
-    min_rtt: (u32, 148..152),
-    data_segs_in: (u32, 152..156),      // RFC4898 tcpEStatsDataSegsIn
-    data_segs_out: (u32, 156..160),     // RFC4898 tcpEStatsDataSegsOut
+    notsent_bytes: u32,
+    min_rtt: u32,
+    data_segs_in: u32,  // RFC4898 tcpEStatsDataSegsIn
+    data_segs_out: u32, // RFC4898 tcpEStatsDataSegsOut
 
-    delivery_rate: (u64, 160..168),
+    delivery_rate: u64,
 
-    busy_time: (u64, 168..176),         // Time (usec) busy sending data
-    rwnd_limited: (u64, 176..184),      // Time (usec) limited by receive window
-    sndbuf_limited: (u64, 184..192),    // Time (usec) limited by send buffer
+    busy_time: u64,      // Time (usec) busy sending data
+    rwnd_limited: u64,   // Time (usec) limited by receive window
+    sndbuf_limited: u64, // Time (usec) limited by send buffer
 
-    delivered: (u32, 192..196),
-    delivered_ce: (u32, 196..200),
+    delivered: u32,
+    delivered_ce: u32,
 
-    bytes_sent: (u64, 200..208),       // RFC4898 tcpEStatsPerfHCDataOctetsOut
-    bytes_retrans: (u64, 208..216),    // RFC4898 tcpEStatsPerfOctetsRetrans
-    dsack_dups: (u32,   216..220),     // RFC4898 tcpEStatsStackDSACKDups
-    reord_seen: (u32,   220..224),     // reordering events seen
-    rcv_ooopack: (u32, 224..228),      // Out-of-order packets received
-    snd_wnd: (u32, 228..232),          // peer's advertised receive window after scaling (bytes)
-});
+    bytes_sent: u64,    // RFC4898 tcpEStatsPerfHCDataOctetsOut
+    bytes_retrans: u64, // RFC4898 tcpEStatsPerfOctetsRetrans
+    dsack_dups: u32,    // RFC4898 tcpEStatsStackDSACKDups
+    reord_seen: u32,    // reordering events seen
+    rcv_ooopack: u32,   // Out-of-order packets received
+    snd_wnd: u32,       /* peer's advertised receive window after scaling
+                         * (bytes) */
+}
 
 // https://unix.stackexchange.com/questions/542712/detailed-output-of-ss-command
 
@@ -575,128 +633,144 @@ pub struct TcpInfo {
 }
 
 #[cfg(feature = "rich_nlas")]
-impl<T: AsRef<[u8]>> Parseable<TcpInfoBuffer<T>> for TcpInfo {
-    fn parse(buf: &TcpInfoBuffer<T>) -> Result<Self, DecodeError> {
+impl TcpInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            TcpInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<TcpInfoBuffer>(),
+                )
+            })?;
         Ok(Self {
-            state: buf.state(),
-            ca_state: buf.congestion_avoidance_state(),
-            retransmits: buf.retransmits(),
-            probes: buf.probes(),
-            backoff: buf.backoff(),
-            options: buf.options(),
-            wscale: buf.wscale(),
-            delivery_rate_app_limited: buf.delivery_rate_app_limited(),
-            rto: buf.rto(),
-            ato: buf.ato(),
-            snd_mss: buf.snd_mss(),
-            rcv_mss: buf.rcv_mss(),
-            unacked: buf.unacked(),
-            sacked: buf.sacked(),
-            lost: buf.lost(),
-            retrans: buf.retrans(),
-            fackets: buf.fackets(),
-            last_data_sent: buf.last_data_sent(),
-            last_ack_sent: buf.last_ack_sent(),
-            last_data_recv: buf.last_data_recv(),
-            last_ack_recv: buf.last_ack_recv(),
-            pmtu: buf.pmtu(),
-            rcv_ssthresh: buf.rcv_ssthresh(),
-            rtt: buf.rtt(),
-            rttvar: buf.rttvar(),
-            snd_ssthresh: buf.snd_ssthresh(),
-            snd_cwnd: buf.snd_cwnd(),
-            advmss: buf.advmss(),
-            reordering: buf.reordering(),
-            rcv_rtt: buf.rcv_rtt(),
-            rcv_space: buf.rcv_space(),
-            total_retrans: buf.total_retrans(),
-            pacing_rate: buf.pacing_rate(),
-            max_pacing_rate: buf.max_pacing_rate(),
-            bytes_acked: buf.bytes_acked(),
-            bytes_received: buf.bytes_received(),
-            segs_out: buf.segs_out(),
-            segs_in: buf.segs_in(),
-            notsent_bytes: buf.notsent_bytes(),
-            min_rtt: buf.min_rtt(),
-            data_segs_in: buf.data_segs_in(),
-            data_segs_out: buf.data_segs_out(),
-            delivery_rate: buf.delivery_rate(),
-            busy_time: buf.busy_time(),
-            rwnd_limited: buf.rwnd_limited(),
-            sndbuf_limited: buf.sndbuf_limited(),
-            delivered: buf.delivered(),
-            delivered_ce: buf.delivered_ce(),
-            bytes_sent: buf.bytes_sent(),
-            bytes_retrans: buf.bytes_retrans(),
-            dsack_dups: buf.dsack_dups(),
-            reord_seen: buf.reord_seen(),
-            rcv_ooopack: buf.rcv_ooopack(),
-            snd_wnd: buf.snd_wnd(),
+            state: raw.state,
+            ca_state: raw.congestion_avoidance_state,
+            retransmits: raw.retransmits,
+            probes: raw.probes,
+            backoff: raw.backoff,
+            options: raw.options,
+            wscale: raw.wscale,
+            delivery_rate_app_limited: raw.delivery_rate_app_limited,
+            rto: raw.rto,
+            ato: raw.ato,
+            snd_mss: raw.snd_mss,
+            rcv_mss: raw.rcv_mss,
+            unacked: raw.unacked,
+            sacked: raw.sacked,
+            lost: raw.lost,
+            retrans: raw.retrans,
+            fackets: raw.fackets,
+            last_data_sent: raw.last_data_sent,
+            last_ack_sent: raw.last_ack_sent,
+            last_data_recv: raw.last_data_recv,
+            last_ack_recv: raw.last_ack_recv,
+            pmtu: raw.pmtu,
+            rcv_ssthresh: raw.rcv_ssthresh,
+            rtt: raw.rtt,
+            rttvar: raw.rttvar,
+            snd_ssthresh: raw.snd_ssthresh,
+            snd_cwnd: raw.snd_cwnd,
+            advmss: raw.advmss,
+            reordering: raw.reordering,
+            rcv_rtt: raw.rcv_rtt,
+            rcv_space: raw.rcv_space,
+            total_retrans: raw.total_retrans,
+            pacing_rate: raw.pacing_rate,
+            max_pacing_rate: raw.max_pacing_rate,
+            bytes_acked: raw.bytes_acked,
+            bytes_received: raw.bytes_received,
+            segs_out: raw.segs_out,
+            segs_in: raw.segs_in,
+            notsent_bytes: raw.notsent_bytes,
+            min_rtt: raw.min_rtt,
+            data_segs_in: raw.data_segs_in,
+            data_segs_out: raw.data_segs_out,
+            delivery_rate: raw.delivery_rate,
+            busy_time: raw.busy_time,
+            rwnd_limited: raw.rwnd_limited,
+            sndbuf_limited: raw.sndbuf_limited,
+            delivered: raw.delivered,
+            delivered_ce: raw.delivered_ce,
+            bytes_sent: raw.bytes_sent,
+            bytes_retrans: raw.bytes_retrans,
+            dsack_dups: raw.dsack_dups,
+            reord_seen: raw.reord_seen,
+            rcv_ooopack: raw.rcv_ooopack,
+            snd_wnd: raw.snd_wnd,
         })
+    }
+}
+
+#[cfg(feature = "rich_nlas")]
+impl From<&TcpInfo> for TcpInfoBuffer {
+    fn from(value: &TcpInfo) -> Self {
+        Self {
+            state: value.state,
+            congestion_avoidance_state: value.ca_state,
+            retransmits: value.retransmits,
+            probes: value.probes,
+            backoff: value.backoff,
+            options: value.options,
+            wscale: value.wscale,
+            delivery_rate_app_limited: value.delivery_rate_app_limited,
+            rto: value.rto,
+            ato: value.ato,
+            snd_mss: value.snd_mss,
+            rcv_mss: value.rcv_mss,
+            unacked: value.unacked,
+            sacked: value.sacked,
+            lost: value.lost,
+            retrans: value.retrans,
+            fackets: value.fackets,
+            last_data_sent: value.last_data_sent,
+            last_ack_sent: value.last_ack_sent,
+            last_data_recv: value.last_data_recv,
+            last_ack_recv: value.last_ack_recv,
+            pmtu: value.pmtu,
+            rcv_ssthresh: value.rcv_ssthresh,
+            rtt: value.rtt,
+            rttvar: value.rttvar,
+            snd_ssthresh: value.snd_ssthresh,
+            snd_cwnd: value.snd_cwnd,
+            advmss: value.advmss,
+            reordering: value.reordering,
+            rcv_rtt: value.rcv_rtt,
+            rcv_space: value.rcv_space,
+            total_retrans: value.total_retrans,
+            pacing_rate: value.pacing_rate,
+            max_pacing_rate: value.max_pacing_rate,
+            bytes_acked: value.bytes_acked,
+            bytes_received: value.bytes_received,
+            segs_out: value.segs_out,
+            segs_in: value.segs_in,
+            notsent_bytes: value.notsent_bytes,
+            min_rtt: value.min_rtt,
+            data_segs_in: value.data_segs_in,
+            data_segs_out: value.data_segs_out,
+            delivery_rate: value.delivery_rate,
+            busy_time: value.busy_time,
+            rwnd_limited: value.rwnd_limited,
+            sndbuf_limited: value.sndbuf_limited,
+            delivered: value.delivered,
+            delivered_ce: value.delivered_ce,
+            bytes_sent: value.bytes_sent,
+            bytes_retrans: value.bytes_retrans,
+            dsack_dups: value.dsack_dups,
+            reord_seen: value.reord_seen,
+            rcv_ooopack: value.rcv_ooopack,
+            snd_wnd: value.snd_wnd,
+        }
     }
 }
 
 #[cfg(feature = "rich_nlas")]
 impl Emitable for TcpInfo {
     fn buffer_len(&self) -> usize {
-        TCP_INFO_LEN
+        size_of::<TcpInfoBuffer>()
     }
 
-    fn emit(&self, buf: &mut [u8]) {
-        let mut buf = TcpInfoBuffer::new(buf);
-        buf.set_state(self.state);
-        buf.set_congestion_avoidance_state(self.ca_state);
-        buf.set_retransmits(self.retransmits);
-        buf.set_probes(self.probes);
-        buf.set_backoff(self.backoff);
-        buf.set_options(self.options);
-        buf.set_wscale(self.wscale);
-        buf.set_delivery_rate_app_limited(self.delivery_rate_app_limited);
-        buf.set_rto(self.rto);
-        buf.set_ato(self.ato);
-        buf.set_snd_mss(self.snd_mss);
-        buf.set_rcv_mss(self.rcv_mss);
-        buf.set_unacked(self.unacked);
-        buf.set_sacked(self.sacked);
-        buf.set_lost(self.lost);
-        buf.set_retrans(self.retrans);
-        buf.set_fackets(self.fackets);
-        buf.set_last_data_sent(self.last_data_sent);
-        buf.set_last_ack_sent(self.last_ack_sent);
-        buf.set_last_data_recv(self.last_data_recv);
-        buf.set_last_ack_recv(self.last_ack_recv);
-        buf.set_pmtu(self.pmtu);
-        buf.set_rcv_ssthresh(self.rcv_ssthresh);
-        buf.set_rtt(self.rtt);
-        buf.set_rttvar(self.rttvar);
-        buf.set_snd_ssthresh(self.snd_ssthresh);
-        buf.set_snd_cwnd(self.snd_cwnd);
-        buf.set_advmss(self.advmss);
-        buf.set_reordering(self.reordering);
-        buf.set_rcv_rtt(self.rcv_rtt);
-        buf.set_rcv_space(self.rcv_space);
-        buf.set_total_retrans(self.total_retrans);
-        buf.set_pacing_rate(self.pacing_rate);
-        buf.set_max_pacing_rate(self.max_pacing_rate);
-        buf.set_bytes_acked(self.bytes_acked);
-        buf.set_bytes_received(self.bytes_received);
-        buf.set_segs_out(self.segs_out);
-        buf.set_segs_in(self.segs_in);
-        buf.set_notsent_bytes(self.notsent_bytes);
-        buf.set_min_rtt(self.min_rtt);
-        buf.set_data_segs_in(self.data_segs_in);
-        buf.set_data_segs_out(self.data_segs_out);
-        buf.set_delivery_rate(self.delivery_rate);
-        buf.set_busy_time(self.busy_time);
-        buf.set_rwnd_limited(self.rwnd_limited);
-        buf.set_sndbuf_limited(self.sndbuf_limited);
-        buf.set_delivered(self.delivered);
-        buf.set_delivered_ce(self.delivered_ce);
-        buf.set_bytes_sent(self.bytes_sent);
-        buf.set_bytes_retrans(self.bytes_retrans);
-        buf.set_dsack_dups(self.dsack_dups);
-        buf.set_reord_seen(self.reord_seen);
-        buf.set_rcv_ooopack(self.rcv_ooopack);
-        buf.set_snd_wnd(self.snd_wnd);
+    fn emit(&self, buffer: &mut [u8]) {
+        let raw = TcpInfoBuffer::from(self);
+        buffer.copy_from_slice(raw.as_bytes());
     }
 }

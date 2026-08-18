@@ -1,25 +1,37 @@
 // SPDX-License-Identifier: MIT
 
+use std::mem::size_of;
+
 use netlink_packet_core::{
-    buffer, fields, getter, setter, DecodeError, Emitable, ErrorContext,
-    Parseable, ParseableParametrized,
+    DecodeError, Emitable, ErrorContext, Parseable, ParseableParametrized,
 };
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::*,
     inet::{SocketId, SocketIdBuffer},
 };
 
-pub const REQUEST_LEN: usize = 56;
-
-buffer!(InetRequestBuffer(REQUEST_LEN) {
-    family: (u8, 0),
-    protocol: (u8, 1),
-    extensions: (u8, 2),
-    pad: (u8, 3),
-    states: (u32, 4..8),
-    socket_id: (slice, 8..56),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct InetRequestBuffer {
+    family: u8,
+    protocol: u8,
+    extensions: u8,
+    pad: u8,
+    states: u32,
+    socket_id: [u8; size_of::<SocketIdBuffer>()],
+}
 
 /// A request for Ipv4 and Ipv6 sockets
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -108,39 +120,54 @@ bitflags! {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<InetRequestBuffer<&'a T>>
-    for InetRequest
-{
-    fn parse(buf: &InetRequestBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for InetRequest {
+    fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            InetRequestBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<InetRequestBuffer>(),
+                )
+            })?;
+
         let err = "invalid socket_id value";
-        let socket_id = SocketId::parse_with_param(
-            &SocketIdBuffer::new_checked(&buf.socket_id()).context(err)?,
-            buf.family(),
-        )
-        .context(err)?;
+        let socket_id =
+            SocketId::parse_with_param(raw.socket_id.as_bytes(), raw.family)
+                .context(err)?;
 
         Ok(Self {
-            family: buf.family(),
-            protocol: buf.protocol(),
-            extensions: ExtensionFlags::from_bits_truncate(buf.extensions()),
-            states: StateFlags::from_bits_truncate(buf.states()),
+            family: raw.family,
+            protocol: raw.protocol,
+            extensions: ExtensionFlags::from_bits_truncate(raw.extensions),
+            states: StateFlags::from_bits_truncate(raw.states),
             socket_id,
         })
     }
 }
 
+impl From<&InetRequest> for InetRequestBuffer {
+    fn from(value: &InetRequest) -> Self {
+        let mut socket_id = [0u8; size_of::<SocketIdBuffer>()];
+        socket_id
+            .copy_from_slice(SocketIdBuffer::from(&value.socket_id).as_bytes());
+        Self {
+            family: value.family,
+            protocol: value.protocol,
+            extensions: value.extensions.bits(),
+            pad: 0,
+            states: value.states.bits(),
+            socket_id,
+        }
+    }
+}
+
 impl Emitable for InetRequest {
     fn buffer_len(&self) -> usize {
-        REQUEST_LEN
+        size_of::<InetRequestBuffer>()
     }
 
     fn emit(&self, buf: &mut [u8]) {
-        let mut buf = InetRequestBuffer::new(buf);
-        buf.set_family(self.family);
-        buf.set_protocol(self.protocol);
-        buf.set_extensions(self.extensions.bits());
-        buf.set_pad(0);
-        buf.set_states(self.states.bits());
-        self.socket_id.emit(buf.socket_id_mut())
+        let raw = InetRequestBuffer::from(self);
+        buf.copy_from_slice(raw.as_bytes());
     }
 }
