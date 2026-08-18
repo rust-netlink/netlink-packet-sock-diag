@@ -14,7 +14,7 @@ description = "netlink packet types for the sock_diag subprotocol"
 rich_nlas = []
 
 [dependencies]
-netlink-packet-core = "0.8"
+netlink-packet-core = "0.9"
 bitflags = "2"
 libc = "0.2.77"
 smallvec = "1.4.2"
@@ -22,4 +22,4 @@ zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
 lazy_static = "1.4.0"
-netlink-sys = { version = "0.8.4" }
+netlink-sys = { version = "0.9" }
