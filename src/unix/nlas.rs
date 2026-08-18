@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{
-    buffer, emit_u32, fields, getter, parse_u32, parse_u8, setter, DecodeError,
-    DefaultNla, Emitable, ErrorContext, NlaBuffer, Parseable,
-};
 use std::{
     ffi::{CStr, OsString},
+    mem::size_of,
     os::unix::ffi::{OsStrExt, OsStringExt},
 };
+
+use netlink_packet_core::{
+    emit_u32, parse_u32, parse_u8, DecodeError, DefaultNla, Emitable,
+    ErrorContext, NlaBuffer, Parseable,
+};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
@@ -116,12 +119,22 @@ pub enum Nla {
     Other(DefaultNla),
 }
 
-pub const VFS_LEN: usize = 8;
-
-buffer!(VfsBuffer(8) {
-    inode: (u32, 0..4),
-    device: (u32, 4..8),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct VfsBuffer {
+    inode: u32,
+    device: u32,
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Vfs {
@@ -131,40 +144,61 @@ pub struct Vfs {
     device: u32,
 }
 
-impl<T: AsRef<[u8]>> Parseable<VfsBuffer<T>> for Vfs {
-    fn parse(buf: &VfsBuffer<T>) -> Result<Self, DecodeError> {
+impl Vfs {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) = VfsBuffer::ref_from_prefix(payload).map_err(|_| {
+            DecodeError::buffer_too_small(payload.len(), size_of::<VfsBuffer>())
+        })?;
         Ok(Self {
-            inode: buf.inode(),
-            device: buf.device(),
+            inode: raw.inode,
+            device: raw.device,
         })
+    }
+}
+
+impl From<&Vfs> for VfsBuffer {
+    fn from(value: &Vfs) -> Self {
+        Self {
+            inode: value.inode,
+            device: value.device,
+        }
     }
 }
 
 impl Emitable for Vfs {
     fn buffer_len(&self) -> usize {
-        VFS_LEN
+        size_of::<VfsBuffer>()
     }
 
     fn emit(&self, buf: &mut [u8]) {
-        let mut buf = VfsBuffer::new(buf);
-        buf.set_inode(self.inode);
-        buf.set_device(self.device);
+        let raw = VfsBuffer::from(self);
+        buf.copy_from_slice(raw.as_bytes());
     }
 }
 
-pub const MEM_INFO_LEN: usize = 36;
-
-buffer!(MemInfoBuffer(MEM_INFO_LEN) {
-    unused_sk_rmem_alloc: (u32, 0..4),
-    so_rcvbuf: (u32, 4..8),
-    unused_sk_wmem_queued: (u32, 8..12),
-    max_datagram_size: (u32, 12..16),
-    unused_sk_fwd_alloc: (u32, 16..20),
-    alloc: (u32, 20..24),
-    unused_sk_optmem: (u32, 24..28),
-    unused_backlog: (u32, 28..32),
-    unused_drops: (u32, 32..36),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct MemInfoBuffer {
+    unused_sk_rmem_alloc: u32,
+    so_rcvbuf: u32,
+    unused_sk_wmem_queued: u32,
+    max_datagram_size: u32,
+    unused_sk_fwd_alloc: u32,
+    alloc: u32,
+    unused_sk_optmem: u32,
+    unused_backlog: u32,
+    unused_drops: u32,
+}
 
 /// # Warning
 ///
@@ -264,32 +298,47 @@ pub struct MemInfo {
     pub alloc: u32,
 }
 
-impl<T: AsRef<[u8]>> Parseable<MemInfoBuffer<T>> for MemInfo {
-    fn parse(buf: &MemInfoBuffer<T>) -> Result<Self, DecodeError> {
+impl MemInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            MemInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<MemInfoBuffer>(),
+                )
+            })?;
         Ok(Self {
-            so_rcvbuf: buf.so_rcvbuf(),
-            max_datagram_size: buf.max_datagram_size(),
-            alloc: buf.alloc(),
+            so_rcvbuf: raw.so_rcvbuf,
+            max_datagram_size: raw.max_datagram_size,
+            alloc: raw.alloc,
         })
+    }
+}
+
+impl From<&MemInfo> for MemInfoBuffer {
+    fn from(value: &MemInfo) -> Self {
+        Self {
+            unused_sk_rmem_alloc: 0,
+            so_rcvbuf: value.so_rcvbuf,
+            unused_sk_wmem_queued: 0,
+            max_datagram_size: value.max_datagram_size,
+            unused_sk_fwd_alloc: 0,
+            alloc: value.alloc,
+            unused_sk_optmem: 0,
+            unused_backlog: 0,
+            unused_drops: 0,
+        }
     }
 }
 
 impl Emitable for MemInfo {
     fn buffer_len(&self) -> usize {
-        MEM_INFO_LEN
+        size_of::<MemInfoBuffer>()
     }
 
     fn emit(&self, buf: &mut [u8]) {
-        let mut buf = MemInfoBuffer::new(buf);
-        buf.set_unused_sk_rmem_alloc(0);
-        buf.set_so_rcvbuf(self.so_rcvbuf);
-        buf.set_unused_sk_wmem_queued(0);
-        buf.set_max_datagram_size(self.max_datagram_size);
-        buf.set_unused_sk_fwd_alloc(0);
-        buf.set_alloc(self.alloc);
-        buf.set_unused_sk_optmem(0);
-        buf.set_unused_backlog(0);
-        buf.set_unused_drops(0);
+        let raw = MemInfoBuffer::from(self);
+        buf.copy_from_slice(raw.as_bytes());
     }
 }
 
@@ -298,11 +347,11 @@ impl netlink_packet_core::Nla for Nla {
         use self::Nla::*;
         match *self {
             Name(ref s) => s.buffer_len(),
-            Vfs(_) => VFS_LEN,
+            Vfs(_) => size_of::<VfsBuffer>(),
             Peer(_) => 4,
             PendingConnections(ref v) => 4 * v.len(),
             ReceiveQueueLength(_, _) => 8,
-            MemInfo(_) => MEM_INFO_LEN,
+            MemInfo(_) => size_of::<MemInfoBuffer>(),
             Shutdown(_) => 1,
             Other(ref attr) => attr.value_len(),
         }
@@ -354,8 +403,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
             ),
             UNIX_DIAG_VFS => {
                 let err = "invalid UNIX_DIAG_VFS value";
-                let buf = VfsBuffer::new_checked(payload).context(err)?;
-                Self::Vfs(Vfs::parse(&buf).context(err)?)
+                Self::Vfs(Vfs::parse(payload).context(err)?)
             }
             UNIX_DIAG_PEER => Self::Peer(
                 parse_u32(payload).context("invalid UNIX_DIAG_PEER value")?,
@@ -379,8 +427,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
             }
             UNIX_DIAG_MEMINFO => {
                 let err = "invalid UNIX_DIAG_MEMINFO value";
-                let buf = MemInfoBuffer::new_checked(payload).context(err)?;
-                Self::MemInfo(MemInfo::parse(&buf).context(err)?)
+                Self::MemInfo(MemInfo::parse(payload).context(err)?)
             }
             UNIX_DIAG_SHUTDOWN => Self::Shutdown(
                 parse_u8(payload)

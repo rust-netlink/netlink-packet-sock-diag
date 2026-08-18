@@ -6,8 +6,7 @@ use crate::{
     constants::*,
     unix::{
         nlas::{Nla, UnixDiagName},
-        ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseBuffer,
-        UnixResponseHeader,
+        ShowFlags, StateFlags, UnixRequest, UnixResponse, UnixResponseHeader,
     },
 };
 
@@ -76,10 +75,7 @@ static LISTENING_BUF: [u8; 60] = [
 
 #[test]
 fn parse_listening() {
-    let parsed = UnixResponse::parse(
-        &UnixResponseBuffer::new_checked(&&LISTENING_BUF[..]).unwrap(),
-    )
-    .unwrap();
+    let parsed = UnixResponse::parse(&LISTENING_BUF[..]).unwrap();
     assert_eq!(parsed, *LISTENING);
 }
 
@@ -144,10 +140,7 @@ static ESTABLISHED_BUF: [u8; 68] = [
 
 #[test]
 fn parse_established() {
-    let parsed = UnixResponse::parse(
-        &UnixResponseBuffer::new_checked(&&ESTABLISHED_BUF[..]).unwrap(),
-    )
-    .unwrap();
+    let parsed = UnixResponse::parse(&ESTABLISHED_BUF[..]).unwrap();
     assert_eq!(parsed, *ESTABLISHED);
 }
 
@@ -214,10 +207,7 @@ static ABSTRACT_ADDRESS_BUF: [u8; 84] = [
 
 #[test]
 fn parse_abstract_address() {
-    let parsed = UnixResponse::parse(
-        &UnixResponseBuffer::new_checked(&&ABSTRACT_ADDRESS_BUF[..]).unwrap(),
-    )
-    .unwrap();
+    let parsed = UnixResponse::parse(&ABSTRACT_ADDRESS_BUF[..]).unwrap();
     assert_eq!(parsed, *ABSTRACT_ADDRESS);
 }
 

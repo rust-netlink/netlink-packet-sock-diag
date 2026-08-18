@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 
 use netlink_packet_core::{
-    DecodeError, Emitable, NetlinkDeserializable, NetlinkHeader,
-    NetlinkPayload, NetlinkSerializable, ParseableParametrized,
+    DecodeError, Emitable, ErrorContext, NetlinkDeserializable, NetlinkHeader,
+    NetlinkPayload, NetlinkSerializable, Parseable, ParseableParametrized,
 };
 
-use crate::{inet, unix, SockDiagBuffer, SOCK_DESTROY, SOCK_DIAG_BY_FAMILY};
+use crate::constants::*;
+use crate::{inet, unix, SOCK_DESTROY, SOCK_DIAG_BY_FAMILY};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SockDiagMessage {
@@ -33,6 +34,53 @@ impl SockDiagMessage {
 
     pub fn message_type(&self) -> u16 {
         SOCK_DIAG_BY_FAMILY
+    }
+}
+
+impl ParseableParametrized<[u8], u16> for SockDiagMessage {
+    fn parse_with_param(
+        buf: &[u8],
+        message_type: u16,
+    ) -> Result<Self, DecodeError> {
+        use self::SockDiagMessage::*;
+
+        if buf.len() < 2 {
+            return Err(format!(
+                "invalid buffer: length is {} but packets are at least 2 bytes",
+                buf.len()
+            )
+            .into());
+        }
+
+        let message = match (message_type, buf[0]) {
+            (SOCK_DIAG_BY_FAMILY, AF_INET) => {
+                let err = "invalid AF_INET response";
+                InetResponse(Box::new(
+                    inet::InetResponse::parse(buf).context(err)?,
+                ))
+            }
+            (SOCK_DIAG_BY_FAMILY, AF_INET6) => {
+                let err = "invalid AF_INET6 response";
+                InetResponse(Box::new(
+                    inet::InetResponse::parse(buf).context(err)?,
+                ))
+            }
+            (SOCK_DIAG_BY_FAMILY, AF_UNIX) => {
+                let err = "invalid AF_UNIX response";
+                UnixResponse(Box::new(
+                    unix::UnixResponse::parse(buf).context(err)?,
+                ))
+            }
+            (SOCK_DIAG_BY_FAMILY, af) => {
+                return Err(format!("unknown address family {af}").into())
+            }
+            _ => {
+                return Err(
+                    format!("unknown message type {message_type}").into()
+                )
+            }
+        };
+        Ok(message)
     }
 }
 
@@ -80,8 +128,7 @@ impl NetlinkDeserializable for SockDiagMessage {
         header: &NetlinkHeader,
         payload: &[u8],
     ) -> Result<Self, Self::Error> {
-        let buffer = SockDiagBuffer::new_checked(&payload)?;
-        SockDiagMessage::parse_with_param(&buffer, header.message_type)
+        SockDiagMessage::parse_with_param(payload, header.message_type)
     }
 }
 

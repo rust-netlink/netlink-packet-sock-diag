@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-use std::time::Duration;
+use std::{mem::size_of, time::Duration};
 
 use netlink_packet_core::{
-    buffer, fields, getter, setter, DecodeError, Emitable, ErrorContext,
-    NlaBuffer, NlasIterator, Parseable, ParseableParametrized,
+    DecodeError, Emitable, ErrorContext, NlasIterator, Parseable,
+    ParseableParametrized,
 };
 use smallvec::SmallVec;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::inet::{nlas::Nla, SocketId, SocketIdBuffer};
 
@@ -23,21 +24,32 @@ pub enum Timer {
     Probe(Duration),
 }
 
-pub const RESPONSE_LEN: usize = 72;
+const INET_RESPONSE_HEADER_LEN: usize = size_of::<InetResponseBuffer>();
 
-buffer!(InetResponseBuffer(RESPONSE_LEN) {
-    family: (u8, 0),
-    state: (u8, 1),
-    timer: (u8, 2),
-    retransmits: (u8, 3),
-    socket_id: (slice, 4..52),
-    expires: (u32, 52..56),
-    recv_queue: (u32, 56..60),
-    send_queue: (u32, 60..64),
-    uid: (u32, 64..68),
-    inode: (u32, 68..72),
-    payload: (slice, RESPONSE_LEN..),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct InetResponseBuffer {
+    family: u8,
+    state: u8,
+    timer: u8,
+    retransmits: u8,
+    socket_id: [u8; size_of::<SocketIdBuffer>()],
+    expires: u32,
+    recv_queue: u32,
+    send_queue: u32,
+    uid: u32,
+    inode: u32,
+}
 
 /// The response to a query for IPv4 or IPv6 sockets
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -71,89 +83,94 @@ pub struct InetResponseHeader {
     pub inode: u32,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
-    for InetResponseHeader
-{
-    fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let err = "invalid socket_id value";
-        let socket_id = SocketId::parse_with_param(
-            &SocketIdBuffer::new_checked(&buf.socket_id()).context(err)?,
-            buf.family(),
-        )
-        .context(err)?;
+impl Parseable<[u8]> for InetResponseHeader {
+    fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            InetResponseBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    INET_RESPONSE_HEADER_LEN,
+                )
+            })?;
 
-        let timer = match buf.timer() {
+        let err = "invalid socket_id value";
+        let socket_id =
+            SocketId::parse_with_param(raw.socket_id.as_bytes(), raw.family)
+                .context(err)?;
+
+        let timer = match raw.timer {
             1 => {
-                let expires = Duration::from_millis(buf.expires() as u64);
-                let retransmits = buf.retransmits();
-                Some(Timer::Retransmit(expires, retransmits))
+                let expires = Duration::from_millis(raw.expires as u64);
+                Some(Timer::Retransmit(expires, raw.retransmits))
             }
             2 => {
-                let expires = Duration::from_millis(buf.expires() as u64);
+                let expires = Duration::from_millis(raw.expires as u64);
                 Some(Timer::KeepAlive(expires))
             }
             3 => Some(Timer::TimeWait),
             4 => {
-                let expires = Duration::from_millis(buf.expires() as u64);
+                let expires = Duration::from_millis(raw.expires as u64);
                 Some(Timer::Probe(expires))
             }
             _ => None,
         };
 
         Ok(Self {
-            family: buf.family(),
-            state: buf.state(),
+            family: raw.family,
+            state: raw.state,
             timer,
             socket_id,
-            recv_queue: buf.recv_queue(),
-            send_queue: buf.send_queue(),
-            uid: buf.uid(),
-            inode: buf.inode(),
+            recv_queue: raw.recv_queue,
+            send_queue: raw.send_queue,
+            uid: raw.uid,
+            inode: raw.inode,
         })
+    }
+}
+
+impl From<&InetResponseHeader> for InetResponseBuffer {
+    fn from(header: &InetResponseHeader) -> Self {
+        let (timer, expires, retransmits) = match header.timer {
+            Some(Timer::Retransmit(expires, retransmits)) => {
+                (1, (expires.as_millis() & 0xffff_ffff) as u32, retransmits)
+            }
+            Some(Timer::KeepAlive(expires)) => {
+                (2, (expires.as_millis() & 0xffff_ffff) as u32, 0)
+            }
+            Some(Timer::TimeWait) => (3, 0, 0),
+            Some(Timer::Probe(expires)) => {
+                (4, (expires.as_millis() & 0xffff_ffff) as u32, 0)
+            }
+            None => (0, 0, 0),
+        };
+
+        let mut socket_id = [0u8; size_of::<SocketIdBuffer>()];
+        socket_id.copy_from_slice(
+            SocketIdBuffer::from(&header.socket_id).as_bytes(),
+        );
+        Self {
+            family: header.family,
+            state: header.state,
+            timer,
+            retransmits,
+            socket_id,
+            expires,
+            recv_queue: header.recv_queue,
+            send_queue: header.send_queue,
+            uid: header.uid,
+            inode: header.inode,
+        }
     }
 }
 
 impl Emitable for InetResponseHeader {
     fn buffer_len(&self) -> usize {
-        RESPONSE_LEN
+        INET_RESPONSE_HEADER_LEN
     }
 
     fn emit(&self, buf: &mut [u8]) {
-        let mut buf = InetResponseBuffer::new(buf);
-        buf.set_family(self.family);
-        buf.set_state(self.state);
-        match self.timer {
-            Some(Timer::Retransmit(expires, retransmits)) => {
-                buf.set_timer(1);
-                buf.set_expires((expires.as_millis() & 0xffff_ffff) as u32);
-                buf.set_retransmits(retransmits);
-            }
-            Some(Timer::KeepAlive(expires)) => {
-                buf.set_timer(2);
-                buf.set_expires((expires.as_millis() & 0xffff_ffff) as u32);
-                buf.set_retransmits(0);
-            }
-            Some(Timer::TimeWait) => {
-                buf.set_timer(3);
-                buf.set_expires(0);
-                buf.set_retransmits(0);
-            }
-            Some(Timer::Probe(expires)) => {
-                buf.set_timer(4);
-                buf.set_expires((expires.as_millis() & 0xffff_ffff) as u32);
-                buf.set_retransmits(0);
-            }
-            None => {
-                buf.set_timer(0);
-                buf.set_expires(0);
-                buf.set_retransmits(0);
-            }
-        }
-        buf.set_recv_queue(self.recv_queue);
-        buf.set_send_queue(self.send_queue);
-        buf.set_uid(self.uid);
-        buf.set_inode(self.inode);
-        self.socket_id.emit(buf.socket_id_mut())
+        let raw = InetResponseBuffer::from(self);
+        buf[..INET_RESPONSE_HEADER_LEN].copy_from_slice(raw.as_bytes());
     }
 }
 
@@ -163,34 +180,25 @@ pub struct InetResponse {
     pub nlas: SmallVec<[Nla; 8]>,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> InetResponseBuffer<&'a T> {
-    pub fn nlas(
-        &self,
-    ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
-        NlasIterator::new(self.payload())
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
-    for SmallVec<[Nla; 8]>
-{
-    fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = smallvec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(Nla::parse(&nla_buf?)?);
+impl Parseable<[u8]> for InetResponse {
+    fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        if payload.len() < INET_RESPONSE_HEADER_LEN {
+            return Err(DecodeError::buffer_too_small(
+                payload.len(),
+                INET_RESPONSE_HEADER_LEN,
+            ));
         }
-        Ok(nlas)
-    }
-}
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<InetResponseBuffer<&'a T>>
-    for InetResponse
-{
-    fn parse(buf: &InetResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let header = InetResponseHeader::parse(buf)
-            .context("failed to parse inet response header")?;
-        let nlas = SmallVec::<[Nla; 8]>::parse(buf)
-            .context("failed to parse inet response NLAs")?;
+        let header =
+            InetResponseHeader::parse(&payload[..INET_RESPONSE_HEADER_LEN])
+                .context("failed to parse inet response header")?;
+        let mut nlas = smallvec![];
+        for nla_buf in NlasIterator::new(&payload[INET_RESPONSE_HEADER_LEN..]) {
+            nlas.push(
+                Nla::parse(&nla_buf?)
+                    .context("failed to parse inet response NLAs")?,
+            );
+        }
         Ok(InetResponse { header, nlas })
     }
 }

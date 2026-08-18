@@ -1,29 +1,40 @@
 // SPDX-License-Identifier: MIT
 
-use std::convert::TryFrom;
+use std::mem::size_of;
 
 use netlink_packet_core::{
-    buffer, fields, getter, setter, DecodeError, Emitable, ErrorContext,
-    NlaBuffer, NlasIterator, Parseable,
+    DecodeError, Emitable, ErrorContext, NlasIterator, Parseable,
 };
 use smallvec::SmallVec;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::*,
     unix::nlas::{MemInfo, Nla, UnixDiagName},
 };
 
-pub const UNIX_RESPONSE_HEADER_LEN: usize = 16;
+const UNIX_RESPONSE_HEADER_LEN: usize = size_of::<UnixResponseBuffer>();
 
-buffer!(UnixResponseBuffer(UNIX_RESPONSE_HEADER_LEN) {
-    family: (u8, 0),
-    kind: (u8, 1),
-    state: (u8, 2),
-    pad: (u8, 3),
-    inode: (u32, 4..8),
-    cookie: (slice, 8..UNIX_RESPONSE_HEADER_LEN),
-    payload: (slice, UNIX_RESPONSE_HEADER_LEN..),
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UnixResponseBuffer {
+    family: u8,
+    kind: u8,
+    state: u8,
+    pad: u8,
+    inode: u32,
+    cookie: [u8; 8],
+}
 
 /// The response to a query for IPv4 or IPv6 sockets
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -41,18 +52,35 @@ pub struct UnixResponseHeader {
     pub cookie: [u8; 8],
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
-    for UnixResponseHeader
-{
-    fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for UnixResponseHeader {
+    fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UnixResponseBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    UNIX_RESPONSE_HEADER_LEN,
+                )
+            })?;
+
         Ok(Self {
-            kind: buf.kind(),
-            state: buf.state(),
-            inode: buf.inode(),
-            // Unwrapping is safe because UnixResponseBuffer::cookie()
-            // returns a slice of exactly 8 bytes.
-            cookie: TryFrom::try_from(buf.cookie()).unwrap(),
+            kind: raw.kind,
+            state: raw.state,
+            inode: raw.inode,
+            cookie: raw.cookie,
         })
+    }
+}
+
+impl From<&UnixResponseHeader> for UnixResponseBuffer {
+    fn from(header: &UnixResponseHeader) -> Self {
+        Self {
+            family: AF_UNIX,
+            kind: header.kind,
+            state: header.state,
+            pad: 0,
+            inode: header.inode,
+            cookie: header.cookie,
+        }
     }
 }
 
@@ -62,13 +90,8 @@ impl Emitable for UnixResponseHeader {
     }
 
     fn emit(&self, buf: &mut [u8]) {
-        let mut buf = UnixResponseBuffer::new(buf);
-        buf.set_family(AF_UNIX);
-        buf.set_kind(self.kind);
-        buf.set_state(self.state);
-        buf.set_pad(0);
-        buf.set_inode(self.inode);
-        buf.cookie_mut().copy_from_slice(&self.cookie[..]);
+        let raw = UnixResponseBuffer::from(self);
+        buf[..UNIX_RESPONSE_HEADER_LEN].copy_from_slice(raw.as_bytes());
     }
 }
 
@@ -180,34 +203,25 @@ impl UnixResponse {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> UnixResponseBuffer<&'a T> {
-    pub fn nlas(
-        &self,
-    ) -> impl Iterator<Item = Result<NlaBuffer<&'a [u8]>, DecodeError>> {
-        NlasIterator::new(self.payload())
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
-    for SmallVec<[Nla; 8]>
-{
-    fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = smallvec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(Nla::parse(&nla_buf?)?);
+impl Parseable<[u8]> for UnixResponse {
+    fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        if payload.len() < UNIX_RESPONSE_HEADER_LEN {
+            return Err(DecodeError::buffer_too_small(
+                payload.len(),
+                UNIX_RESPONSE_HEADER_LEN,
+            ));
         }
-        Ok(nlas)
-    }
-}
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<UnixResponseBuffer<&'a T>>
-    for UnixResponse
-{
-    fn parse(buf: &UnixResponseBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let header = UnixResponseHeader::parse(buf)
-            .context("failed to parse inet response header")?;
-        let nlas = SmallVec::<[Nla; 8]>::parse(buf)
-            .context("failed to parse inet response NLAs")?;
+        let header =
+            UnixResponseHeader::parse(&payload[..UNIX_RESPONSE_HEADER_LEN])
+                .context("failed to parse unix response header")?;
+        let mut nlas = smallvec![];
+        for nla_buf in NlasIterator::new(&payload[UNIX_RESPONSE_HEADER_LEN..]) {
+            nlas.push(
+                Nla::parse(&nla_buf?)
+                    .context("failed to parse unix response NLAs")?,
+            );
+        }
         Ok(UnixResponse { header, nlas })
     }
 }

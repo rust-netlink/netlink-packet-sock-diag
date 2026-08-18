@@ -10,9 +10,8 @@ use netlink_packet_core::{Emitable, Parseable};
 use crate::{
     constants::*,
     inet::{
-        nlas::Nla, ExtensionFlags, InetRequest, InetRequestBuffer,
-        InetResponse, InetResponseBuffer, InetResponseHeader, SocketId,
-        StateFlags, Timer,
+        nlas::Nla, ExtensionFlags, InetRequest, InetResponse,
+        InetResponseHeader, SocketId, StateFlags, Timer,
     },
 };
 
@@ -49,10 +48,7 @@ static REQ_UDP_BUF: [u8; 56] = [
 
 #[test]
 fn parse_udp_req() {
-    let parsed = InetRequest::parse(
-        &InetRequestBuffer::new_checked(&&REQ_UDP_BUF[..]).unwrap(),
-    )
-    .unwrap();
+    let parsed = InetRequest::parse(&REQ_UDP_BUF[..]).unwrap();
     assert_eq!(parsed, *REQ_UDP);
 }
 
@@ -123,10 +119,7 @@ static RESP_TCP_BUF: [u8; 80] = [
 
 #[test]
 fn parse_tcp_resp() {
-    let parsed = InetResponse::parse(
-        &InetResponseBuffer::new_checked(&&RESP_TCP_BUF[..]).unwrap(),
-    )
-    .unwrap();
+    let parsed = InetResponse::parse(&RESP_TCP_BUF[..]).unwrap();
     assert_eq!(parsed, *RESP_TCP);
 }
 
