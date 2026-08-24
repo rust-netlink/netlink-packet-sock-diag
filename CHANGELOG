@@ -1,4 +1,23 @@
 # Changelog
+## [0.5.0] - 2026-08-24
+### Breaking changes
+ - API break: replace buffer! macro with zerocopy. (370e0f9)
+ - Use netlink-packet-core 0.9. (a74f4ad)
+
+### New features
+ - Support for SOCK_DESTROY. (e727515)
+
+### Bug fixes
+ - Fix parsing of abstract Unix socket addresses. (f14c57f)
+ - clarify retransmit-related fields of TcpInfo. (19b5df5)
+ - fix rustdoc::broken_intra_doc_links. (54fe92a)
+ - Silence deprecated flag reexport. (7dec07c)
+ - Drop byte-order dependency. (27afe7c)
+ - Drop anyhow dependency. (d2f4223)
+ - Update bitflags. (4298940)
+ - Fix dump_ipv4 example. (f5f4ad7)
+ - Fix CI to set token. (f523993)
+
 ## [0.4.2] - 2023-07-10
 ### Breaking changes
  - N/A
