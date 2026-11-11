@@ -11,6 +11,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::inet::{nlas::Nla, SocketId, SocketIdBuffer};
 
+use netlink_packet_core::{append_bytes, EncodeError};
 /// The type of timer that is currently active for a TCP socket.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Timer {
@@ -164,13 +165,10 @@ impl From<&InetResponseHeader> for InetResponseBuffer {
 }
 
 impl Emitable for InetResponseHeader {
-    fn buffer_len(&self) -> usize {
-        INET_RESPONSE_HEADER_LEN
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = InetResponseBuffer::from(self);
-        buf[..INET_RESPONSE_HEADER_LEN].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -193,9 +191,10 @@ impl Parseable<[u8]> for InetResponse {
             InetResponseHeader::parse(&payload[..INET_RESPONSE_HEADER_LEN])
                 .context("failed to parse inet response header")?;
         let mut nlas = smallvec![];
-        for nla_buf in NlasIterator::new(&payload[INET_RESPONSE_HEADER_LEN..]) {
+        for nla_buf in NlasIterator::new(&payload[INET_RESPONSE_HEADER_LEN..])?
+        {
             nlas.push(
-                Nla::parse(&nla_buf?)
+                Nla::parse(&nla_buf)
                     .context("failed to parse inet response NLAs")?,
             );
         }
@@ -204,14 +203,9 @@ impl Parseable<[u8]> for InetResponse {
 }
 
 impl Emitable for InetResponse {
-    fn buffer_len(&self) -> usize {
-        self.header.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.header.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.header.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.header.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }

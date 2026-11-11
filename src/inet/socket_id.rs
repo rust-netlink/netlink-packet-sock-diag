@@ -10,6 +10,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
+use netlink_packet_core::{append_bytes, EncodeError};
 #[derive(
     Debug,
     PartialEq,
@@ -148,12 +149,9 @@ impl From<&SocketId> for SocketIdBuffer {
 }
 
 impl Emitable for SocketId {
-    fn buffer_len(&self) -> usize {
-        size_of::<SocketIdBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SocketIdBuffer::from(self);
-        buffer.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

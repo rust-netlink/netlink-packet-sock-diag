@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 use netlink_packet_core::{
-    DecodeError, Emitable, ErrorContext, NetlinkDeserializable, NetlinkHeader,
-    NetlinkPayload, NetlinkSerializable, Parseable, ParseableParametrized,
+    DecodeError, Emitable, EncodeError, ErrorContext, NetlinkDeserializable,
+    NetlinkHeader, NetlinkMessagePayload, NetlinkPayload, Parseable,
+    ParseableParametrized,
 };
 
 use crate::constants::*;
@@ -85,49 +86,30 @@ impl ParseableParametrized<[u8], u16> for SockDiagMessage {
 }
 
 impl Emitable for SockDiagMessage {
-    fn buffer_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use SockDiagMessage::*;
 
         match self {
-            InetRequest(ref msg) => msg.buffer_len(),
-            InetResponse(ref msg) => msg.buffer_len(),
-            UnixRequest(ref msg) => msg.buffer_len(),
-            UnixResponse(ref msg) => msg.buffer_len(),
+            InetRequest(ref msg) => msg.emit(out)?,
+            InetResponse(ref msg) => msg.emit(out)?,
+            UnixRequest(ref msg) => msg.emit(out)?,
+            UnixResponse(ref msg) => msg.emit(out)?,
         }
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        use SockDiagMessage::*;
-
-        match self {
-            InetRequest(ref msg) => msg.emit(buffer),
-            InetResponse(ref msg) => msg.emit(buffer),
-            UnixRequest(ref msg) => msg.emit(buffer),
-            UnixResponse(ref msg) => msg.emit(buffer),
-        }
+        Ok(())
     }
 }
 
-impl NetlinkSerializable for SockDiagMessage {
+impl NetlinkMessagePayload for SockDiagMessage {
     fn message_type(&self) -> u16 {
-        self.message_type()
-    }
-
-    fn buffer_len(&self) -> usize {
-        <Self as Emitable>::buffer_len(self)
-    }
-
-    fn serialize(&self, buffer: &mut [u8]) {
-        self.emit(buffer)
+        SockDiagMessage::message_type(self)
     }
 }
 
 impl NetlinkDeserializable for SockDiagMessage {
-    type Error = DecodeError;
     fn deserialize(
         header: &NetlinkHeader,
         payload: &[u8],
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self, DecodeError> {
         SockDiagMessage::parse_with_param(payload, header.message_type)
     }
 }
@@ -147,26 +129,23 @@ impl SockDiagDestroy {
     }
 }
 
-impl NetlinkSerializable for SockDiagDestroy {
+impl Emitable for SockDiagDestroy {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.0.emit(out)
+    }
+}
+
+impl NetlinkMessagePayload for SockDiagDestroy {
     fn message_type(&self) -> u16 {
         SOCK_DESTROY
-    }
-
-    fn buffer_len(&self) -> usize {
-        NetlinkSerializable::buffer_len(&self.0)
-    }
-
-    fn serialize(&self, buffer: &mut [u8]) {
-        self.0.serialize(buffer)
     }
 }
 
 impl NetlinkDeserializable for SockDiagDestroy {
-    type Error = DecodeError;
     fn deserialize(
         header: &NetlinkHeader,
         payload: &[u8],
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self, DecodeError> {
         Ok(SockDiagDestroy::new(SockDiagMessage::deserialize(
             header, payload,
         )?))

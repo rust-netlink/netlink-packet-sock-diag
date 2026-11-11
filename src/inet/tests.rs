@@ -54,9 +54,8 @@ fn parse_udp_req() {
 
 #[test]
 fn emit_udp_req() {
-    assert_eq!(REQ_UDP.buffer_len(), 56);
-    let mut buf = vec![0; REQ_UDP.buffer_len()];
-    REQ_UDP.emit(&mut buf);
+    let mut buf = Vec::new();
+    REQ_UDP.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &REQ_UDP_BUF[..]);
 }
 
@@ -125,8 +124,7 @@ fn parse_tcp_resp() {
 
 #[test]
 fn emit_tcp_resp() {
-    assert_eq!(RESP_TCP.buffer_len(), 80);
-    let mut buf = vec![0; RESP_TCP.buffer_len()];
-    RESP_TCP.emit(&mut buf);
+    let mut buf = Vec::new();
+    RESP_TCP.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &RESP_TCP_BUF[..]);
 }

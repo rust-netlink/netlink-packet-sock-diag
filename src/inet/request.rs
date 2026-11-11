@@ -12,6 +12,7 @@ use crate::{
     inet::{SocketId, SocketIdBuffer},
 };
 
+use netlink_packet_core::{append_bytes, EncodeError};
 #[derive(
     Debug,
     PartialEq,
@@ -162,12 +163,9 @@ impl From<&InetRequest> for InetRequestBuffer {
 }
 
 impl Emitable for InetRequest {
-    fn buffer_len(&self) -> usize {
-        size_of::<InetRequestBuffer>()
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = InetRequestBuffer::from(self);
-        buf.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
