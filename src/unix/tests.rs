@@ -81,11 +81,8 @@ fn parse_listening() {
 
 #[test]
 fn emit_listening() {
-    assert_eq!(LISTENING.buffer_len(), 60);
-    // Initialize the buffer with 0xff to check that padding bytes are
-    // set to 0
-    let mut buf = vec![0xff; LISTENING.buffer_len()];
-    LISTENING.emit(&mut buf);
+    let mut buf = Vec::new();
+    LISTENING.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &LISTENING_BUF[..]);
 }
 
@@ -146,17 +143,15 @@ fn parse_established() {
 
 #[test]
 fn emit_established() {
-    assert_eq!(ESTABLISHED.buffer_len(), 68);
-    let mut buf = vec![0xff; ESTABLISHED.buffer_len()];
-    ESTABLISHED.emit(&mut buf);
+    let mut buf = Vec::new();
+    ESTABLISHED.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &ESTABLISHED_BUF[..]);
 }
 
 #[test]
 fn emit_socket_info() {
-    assert_eq!(SOCKET_INFO.buffer_len(), 24);
-    let mut buf = vec![0xff; SOCKET_INFO.buffer_len()];
-    SOCKET_INFO.emit(&mut buf);
+    let mut buf = Vec::new();
+    SOCKET_INFO.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &SOCKET_INFO_BUF[..]);
 }
 
@@ -213,8 +208,7 @@ fn parse_abstract_address() {
 
 #[test]
 fn emit_abstract_address() {
-    assert_eq!(ABSTRACT_ADDRESS.buffer_len(), 84);
-    let mut buf = vec![0xff; ABSTRACT_ADDRESS.buffer_len()];
-    ABSTRACT_ADDRESS.emit(&mut buf);
+    let mut buf = Vec::new();
+    ABSTRACT_ADDRESS.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &ABSTRACT_ADDRESS_BUF[..]);
 }

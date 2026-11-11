@@ -3,13 +3,14 @@
 use std::mem::size_of;
 
 use netlink_packet_core::{
-    emit_u32, parse_string, parse_u32, parse_u8, DecodeError, DefaultNla,
+    append_u32, parse_string, parse_u32, parse_u8, DecodeError, DefaultNla,
     Emitable, ErrorContext, NlaBuffer, Parseable,
 };
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
+use netlink_packet_core::{append_bytes, EncodeError};
 #[derive(
     Debug,
     PartialEq,
@@ -74,13 +75,10 @@ impl From<&LegacyMemInfo> for LegacyMemInfoBuffer {
 }
 
 impl Emitable for LegacyMemInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<LegacyMemInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = LegacyMemInfoBuffer::from(self);
-        buffer.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -255,13 +253,10 @@ impl From<&MemInfo> for MemInfoBuffer {
 }
 
 impl Emitable for MemInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<MemInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = MemInfoBuffer::from(self);
-        buffer.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -300,23 +295,6 @@ pub enum Nla {
 }
 
 impl netlink_packet_core::Nla for Nla {
-    fn value_len(&self) -> usize {
-        use self::Nla::*;
-        match *self {
-            LegacyMemInfo(_) => size_of::<LegacyMemInfoBuffer>(),
-            #[cfg(feature = "rich_nlas")]
-            TcpInfo(_) => size_of::<TcpInfoBuffer>(),
-            #[cfg(not(feature = "rich_nlas"))]
-            TcpInfo(ref bytes) => bytes.len(),
-            // +1 because we need to append a null byte
-            Congestion(ref s) => s.len() + 1,
-            Tos(_) | Tc(_) | Shutdown(_) | Protocol(_) | SkV6Only(_) => 1,
-            MemInfo(_) => size_of::<MemInfoBuffer>(),
-            Mark(_) | ClassId(_) => 4,
-            Other(ref attr) => attr.value_len(),
-        }
-    }
-
     fn kind(&self) -> u16 {
         use self::Nla::*;
         match *self {
@@ -335,31 +313,30 @@ impl netlink_packet_core::Nla for Nla {
         }
     }
 
-    fn emit_value(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::Nla::*;
         match *self {
-            LegacyMemInfo(ref value) => value.emit(buffer),
+            LegacyMemInfo(ref value) => value.emit(out)?,
             #[cfg(feature = "rich_nlas")]
-            TcpInfo(ref value) => value.emit(buffer),
+            TcpInfo(ref value) => value.emit(out)?,
             #[cfg(not(feature = "rich_nlas"))]
-            TcpInfo(ref bytes) => {
-                buffer[..bytes.len()].copy_from_slice(&bytes[..])
-            }
+            TcpInfo(ref bytes) => append_bytes(out, &bytes[..]),
             Congestion(ref s) => {
-                buffer[..s.len()].copy_from_slice(s.as_bytes());
-                buffer[s.len()] = 0;
+                append_bytes(out, s.as_bytes());
+                out.push(0);
             }
-            Tos(b) | Tc(b) | Shutdown(b) | Protocol(b) => buffer[0] = b,
-            SkV6Only(value) => buffer[0] = value.into(),
-            MemInfo(ref value) => value.emit(buffer),
-            Mark(value) | ClassId(value) => emit_u32(buffer, value).unwrap(),
-            Other(ref attr) => attr.emit_value(buffer),
+            Tos(b) | Tc(b) | Shutdown(b) | Protocol(b) => out.push(b),
+            SkV6Only(value) => out.push(value.into()),
+            MemInfo(ref value) => value.emit(out)?,
+            Mark(value) | ClassId(value) => append_u32(out, value),
+            Other(ref attr) => return attr.emit_value(out),
         }
+        Ok(())
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
-    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl<'a> Parseable<NlaBuffer<'a>> for Nla {
+    fn parse(buf: &NlaBuffer<'a>) -> Result<Self, DecodeError> {
         let payload = buf.value();
         Ok(match buf.kind() {
             INET_DIAG_MEMINFO => {
@@ -765,12 +742,9 @@ impl From<&TcpInfo> for TcpInfoBuffer {
 
 #[cfg(feature = "rich_nlas")]
 impl Emitable for TcpInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<TcpInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = TcpInfoBuffer::from(self);
-        buffer.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

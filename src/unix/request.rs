@@ -7,6 +7,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
+use netlink_packet_core::{append_bytes, EncodeError};
 #[derive(
     Debug,
     PartialEq,
@@ -128,12 +129,9 @@ impl From<&UnixRequest> for UnixRequestBuffer {
 }
 
 impl Emitable for UnixRequest {
-    fn buffer_len(&self) -> usize {
-        size_of::<UnixRequestBuffer>()
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UnixRequestBuffer::from(self);
-        buf.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

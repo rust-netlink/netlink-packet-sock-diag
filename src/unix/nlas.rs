@@ -7,13 +7,14 @@ use std::{
 };
 
 use netlink_packet_core::{
-    emit_u32, parse_u32, parse_u8, DecodeError, DefaultNla, Emitable,
+    append_u32, parse_u32, parse_u8, DecodeError, DefaultNla, Emitable,
     ErrorContext, NlaBuffer, Parseable,
 };
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
+use netlink_packet_core::{append_bytes, EncodeError};
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UnixDiagName {
     /// Filesystem pathname to which the socket was bound.
@@ -43,30 +44,18 @@ impl<T: AsRef<[u8]>> Parseable<T> for UnixDiagName {
 }
 
 impl Emitable for UnixDiagName {
-    fn buffer_len(&self) -> usize {
-        match self {
-            UnixDiagName::Pathname(pathname) => pathname.len() + 1,
-            UnixDiagName::Abstract(address) => address.len() + 1,
-        }
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         match self {
             UnixDiagName::Pathname(pathname) => {
-                let (last, first) = buffer
-                    .split_last_mut()
-                    .expect("buffer should not be empty");
-                first.copy_from_slice(pathname.as_bytes());
-                *last = 0;
+                append_bytes(out, pathname.as_bytes());
+                out.push(0);
             }
             UnixDiagName::Abstract(address) => {
-                let (first, last) = buffer
-                    .split_first_mut()
-                    .expect("buffer should not be empty");
-                *first = 0;
-                last.copy_from_slice(address);
+                out.push(0);
+                append_bytes(out, address);
             }
         }
+        Ok(())
     }
 }
 
@@ -166,13 +155,10 @@ impl From<&Vfs> for VfsBuffer {
 }
 
 impl Emitable for Vfs {
-    fn buffer_len(&self) -> usize {
-        size_of::<VfsBuffer>()
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = VfsBuffer::from(self);
-        buf.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -332,50 +318,34 @@ impl From<&MemInfo> for MemInfoBuffer {
 }
 
 impl Emitable for MemInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<MemInfoBuffer>()
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = MemInfoBuffer::from(self);
-        buf.copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
 impl netlink_packet_core::Nla for Nla {
-    fn value_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::Nla::*;
         match *self {
-            Name(ref s) => s.buffer_len(),
-            Vfs(_) => size_of::<VfsBuffer>(),
-            Peer(_) => 4,
-            PendingConnections(ref v) => 4 * v.len(),
-            ReceiveQueueLength(_, _) => 8,
-            MemInfo(_) => size_of::<MemInfoBuffer>(),
-            Shutdown(_) => 1,
-            Other(ref attr) => attr.value_len(),
-        }
-    }
-
-    fn emit_value(&self, buffer: &mut [u8]) {
-        use self::Nla::*;
-        match *self {
-            Name(ref s) => s.emit(buffer),
-            Vfs(ref value) => value.emit(buffer),
-            Peer(value) => emit_u32(buffer, value).unwrap(),
+            Name(ref s) => s.emit(out)?,
+            Vfs(ref value) => value.emit(out)?,
+            Peer(value) => append_u32(out, value),
             PendingConnections(ref values) => {
-                for (i, v) in values.iter().enumerate() {
-                    emit_u32(&mut buffer[i * 4..], *v).unwrap();
+                for v in values.iter() {
+                    append_u32(out, *v);
                 }
             }
             ReceiveQueueLength(v1, v2) => {
-                emit_u32(buffer, v1).unwrap();
-                emit_u32(&mut buffer[4..], v2).unwrap();
+                append_u32(out, v1);
+                append_u32(out, v2);
             }
-            MemInfo(ref value) => value.emit(buffer),
-            Shutdown(value) => buffer[0] = value,
-            Other(ref attr) => attr.emit_value(buffer),
+            MemInfo(ref value) => value.emit(out)?,
+            Shutdown(value) => out.push(value),
+            Other(ref attr) => return attr.emit_value(out),
         }
+        Ok(())
     }
 
     fn kind(&self) -> u16 {
@@ -393,8 +363,8 @@ impl netlink_packet_core::Nla for Nla {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
-    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl<'a> Parseable<NlaBuffer<'a>> for Nla {
+    fn parse(buf: &NlaBuffer<'a>) -> Result<Self, DecodeError> {
         let payload = buf.value();
         Ok(match buf.kind() {
             UNIX_DIAG_NAME => Self::Name(

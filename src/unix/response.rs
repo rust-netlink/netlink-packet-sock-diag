@@ -13,6 +13,7 @@ use crate::{
     unix::nlas::{MemInfo, Nla, UnixDiagName},
 };
 
+use netlink_packet_core::{append_bytes, EncodeError};
 const UNIX_RESPONSE_HEADER_LEN: usize = size_of::<UnixResponseBuffer>();
 
 #[derive(
@@ -85,13 +86,10 @@ impl From<&UnixResponseHeader> for UnixResponseBuffer {
 }
 
 impl Emitable for UnixResponseHeader {
-    fn buffer_len(&self) -> usize {
-        UNIX_RESPONSE_HEADER_LEN
-    }
-
-    fn emit(&self, buf: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UnixResponseBuffer::from(self);
-        buf[..UNIX_RESPONSE_HEADER_LEN].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -216,9 +214,10 @@ impl Parseable<[u8]> for UnixResponse {
             UnixResponseHeader::parse(&payload[..UNIX_RESPONSE_HEADER_LEN])
                 .context("failed to parse unix response header")?;
         let mut nlas = smallvec![];
-        for nla_buf in NlasIterator::new(&payload[UNIX_RESPONSE_HEADER_LEN..]) {
+        for nla_buf in NlasIterator::new(&payload[UNIX_RESPONSE_HEADER_LEN..])?
+        {
             nlas.push(
-                Nla::parse(&nla_buf?)
+                Nla::parse(&nla_buf)
                     .context("failed to parse unix response NLAs")?,
             );
         }
@@ -227,14 +226,9 @@ impl Parseable<[u8]> for UnixResponse {
 }
 
 impl Emitable for UnixResponse {
-    fn buffer_len(&self) -> usize {
-        self.header.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.header.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.header.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.header.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
