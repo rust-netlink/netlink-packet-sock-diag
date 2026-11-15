@@ -22,4 +22,4 @@ zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
 lazy_static = "1.4.0"
-netlink-sys = { version = "0.9" }
+netlink-sys = { version = "1.0.0-rc2" }
